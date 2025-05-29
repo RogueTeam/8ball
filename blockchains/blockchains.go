@@ -13,6 +13,15 @@ const (
 type Priority string
 
 type (
+	NewAddressRequest struct {
+		Label string
+	}
+	Address struct {
+		AccountAddress string
+		AccountIndex   uint64
+		Address        string
+		Index          uint64
+	}
 	SweepRequest struct {
 		// Source address
 		Source string
@@ -80,6 +89,9 @@ type (
 )
 
 type Wallet interface {
+	// Create a new address associate with the account
+	NewAddress(req NewAddressRequest) (address Address, err error)
+
 	// Transfers the entire balance of an address to destination
 	SweepAll(req SweepRequest) (sweep Sweep, err error)
 

@@ -7,11 +7,11 @@ import (
 
 	"anarchy.ttfm.onion/gateway/blockchains"
 	"anarchy.ttfm.onion/gateway/utils"
-	walletrpc "github.com/dev-warrior777/go-monero/rpc"
+	"github.com/dev-warrior777/go-monero/rpc"
 )
 
 type Config struct {
-	Client *walletrpc.Client
+	Client *rpc.Client
 
 	Account  string
 	Filename string
@@ -19,7 +19,7 @@ type Config struct {
 }
 
 type Wallet struct {
-	client *walletrpc.Client
+	client *rpc.Client
 
 	accountAddress      string
 	accountAddressIndex uint64
@@ -34,7 +34,7 @@ var (
 var _ blockchains.Wallet = (*Wallet)(nil)
 
 func (w *Wallet) validateAddress(ctx context.Context, address string) (err error) {
-	var validate = walletrpc.ValidateAddressRequest{
+	var validate = rpc.ValidateAddressRequest{
 		Address:        address,
 		AllowOpenalias: true,
 	}
@@ -47,6 +47,28 @@ func (w *Wallet) validateAddress(ctx context.Context, address string) (err error
 		return ErrInvalidAddress
 	}
 	return nil
+}
+
+func (w *Wallet) NewAddress(req blockchains.NewAddressRequest) (address blockchains.Address, err error) {
+	ctx, cancel := utils.NewContext()
+	defer cancel()
+
+	var createAddress = rpc.CreateAddressRequest{
+		AccountIndex: w.accountAddressIndex,
+		Label:        req.Label,
+	}
+	addr, err := w.client.CreateAddress(ctx, &createAddress)
+	if err != nil {
+		return address, fmt.Errorf("failed to create address: %w", err)
+	}
+
+	address = blockchains.Address{
+		AccountAddress: w.accountAddress,
+		AccountIndex:   w.accountAddressIndex,
+		Address:        addr.Address,
+		Index:          addr.AddressIndex,
+	}
+	return
 }
 
 func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep, err error) {
@@ -63,7 +85,7 @@ func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep
 		return sweep, fmt.Errorf("failed to validate destination address: %w", err)
 	}
 
-	var getSrcIndex = walletrpc.GetAddressIndexRequest{
+	var getSrcIndex = rpc.GetAddressIndexRequest{
 		Address: req.Source,
 	}
 	addrIndex, err := w.client.GetAddressIndex(ctx, &getSrcIndex)
@@ -75,19 +97,19 @@ func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep
 		return sweep, fmt.Errorf("source address index doesn't match account: %w", ErrInvalidAddrIndex)
 	}
 
-	var priority walletrpc.Priority
+	var priority rpc.Priority
 	switch req.Priority {
 	case blockchains.PriorityLow:
-		priority = walletrpc.PriorityUnimportant
+		priority = rpc.PriorityUnimportant
 	case blockchains.PriorityMedium:
-		priority = walletrpc.PriorityNormal
+		priority = rpc.PriorityNormal
 	case blockchains.PriorityHigh:
-		priority = walletrpc.PriorityElevated
+		priority = rpc.PriorityElevated
 	default:
 		return sweep, blockchains.ErrInvalidPriority
 	}
 
-	var trans = walletrpc.SweepAllRequest{
+	var trans = rpc.SweepAllRequest{
 		Address:      req.Destination,
 		AccountIndex: w.accountAddressIndex,
 		SubaddrIndices: []uint64{
@@ -131,7 +153,7 @@ func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains
 		return transfer, fmt.Errorf("failed to validate destination address: %w", err)
 	}
 
-	var getSrcIndex = walletrpc.GetAddressIndexRequest{
+	var getSrcIndex = rpc.GetAddressIndexRequest{
 		Address: req.Source,
 	}
 	addrIndex, err := w.client.GetAddressIndex(ctx, &getSrcIndex)
@@ -143,20 +165,20 @@ func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains
 		return transfer, fmt.Errorf("source address index doesn't match account: %w", ErrInvalidAddrIndex)
 	}
 
-	var priority walletrpc.Priority
+	var priority rpc.Priority
 	switch req.Priority {
 	case blockchains.PriorityLow:
-		priority = walletrpc.PriorityUnimportant
+		priority = rpc.PriorityUnimportant
 	case blockchains.PriorityMedium:
-		priority = walletrpc.PriorityNormal
+		priority = rpc.PriorityNormal
 	case blockchains.PriorityHigh:
-		priority = walletrpc.PriorityElevated
+		priority = rpc.PriorityElevated
 	default:
 		return transfer, blockchains.ErrInvalidPriority
 	}
 
-	var trans = walletrpc.TransferRequest{
-		Destinations: []walletrpc.Destination{
+	var trans = rpc.TransferRequest{
+		Destinations: []rpc.Destination{
 			{Amount: req.Amount, Address: req.Destination},
 		},
 		AccountIndex: w.accountAddressIndex,
@@ -191,7 +213,7 @@ func (w *Wallet) Balance() (balance blockchains.Balance, err error) {
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	accountBalance, err := w.client.GetBalance(ctx, &walletrpc.GetBalanceRequest{
+	accountBalance, err := w.client.GetBalance(ctx, &rpc.GetBalanceRequest{
 		AccountIndex: w.accountAddressIndex,
 	})
 	if err != nil {
@@ -210,7 +232,7 @@ func (w *Wallet) AddressBalance(req blockchains.AddressBalanceRequest) (balance 
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	var getSrcIndex = walletrpc.GetAddressIndexRequest{
+	var getSrcIndex = rpc.GetAddressIndexRequest{
 		Address: req.Address,
 	}
 	addrIndex, err := w.client.GetAddressIndex(ctx, &getSrcIndex)
@@ -222,7 +244,7 @@ func (w *Wallet) AddressBalance(req blockchains.AddressBalanceRequest) (balance 
 		return balance, fmt.Errorf("source address index doesn't match account: %w", ErrInvalidAddrIndex)
 	}
 
-	accountBalance, err := w.client.GetBalance(ctx, &walletrpc.GetBalanceRequest{
+	accountBalance, err := w.client.GetBalance(ctx, &rpc.GetBalanceRequest{
 		AccountIndex:   w.accountAddressIndex,
 		AddressIndices: []uint64{addrIndex.Index.Minor},
 	})
@@ -260,7 +282,7 @@ func New(config Config) (w Wallet, err error) {
 	w.client = config.Client
 
 	// Open Monero wallet
-	var openWallet = walletrpc.OpenWalletRequest{
+	var openWallet = rpc.OpenWalletRequest{
 		Filename: config.Filename,
 		Password: config.Password,
 	}
@@ -270,7 +292,7 @@ func New(config Config) (w Wallet, err error) {
 	}
 
 	// Get account index
-	var getAccounts walletrpc.GetAccountsRequest
+	var getAccounts rpc.GetAccountsRequest
 	accounts, err := w.client.GetAccounts(ctx, &getAccounts)
 	if err != nil {
 		return w, fmt.Errorf("failed to list wallet accounts: %w", err)
