@@ -13,8 +13,6 @@ import (
 
 	"anarchy.ttfm.onion/gateway/blockchains/monero"
 	"anarchy.ttfm.onion/gateway/blockchains/testsuite"
-	"anarchy.ttfm.onion/gateway/random"
-	"anarchy.ttfm.onion/gateway/utils"
 	"github.com/dev-warrior777/go-monero/rpc"
 	"github.com/gabstv/httpdigest"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +30,27 @@ const (
 	walletPort      = "18082"
 	walletAddress   = walletIp + ":" + walletPort
 )
+
+var (
+	walletDir      string
+	walletFilename string
+	walletPassword string
+)
+
+func init() {
+	walletDir = os.Getenv("WALLET_DIR")
+	if walletDir == "" {
+		log.Fatal("WALLET_DIR not set")
+	}
+	walletFilename = os.Getenv("WALLET_FILENAME")
+	if walletFilename == "" {
+		log.Fatal("WALLET_FILENAME not set")
+	}
+	walletPassword = os.Getenv("WALLET_PASSWORD")
+	if walletPassword == "" {
+		log.Fatal("WALLET_PASSWORD not set")
+	}
+}
 
 func forceConnection(t *testing.T, addr string) {
 	assertions := assert.New(t)
@@ -67,9 +86,6 @@ func prepareMonero(t *testing.T) (kill func()) {
 
 	forceConnection(t, daemonAddress)
 
-	temp, err := os.MkdirTemp("", "*")
-	assertions.Nil(err, "failed to create temp")
-
 	var walletRpcOut bytes.Buffer
 	walletRpc := exec.Command("monero-wallet-rpc",
 		"--testnet",
@@ -80,7 +96,7 @@ func prepareMonero(t *testing.T) (kill func()) {
 		"--daemon-address", daemonAddress,
 		"--daemon-login", defaultCreds,
 		"--rpc-login", defaultCreds,
-		"--wallet-dir", temp,
+		"--wallet-dir", walletDir,
 	)
 	walletRpc.Stdout = &walletRpcOut
 	walletRpc.Stderr = &walletRpcOut
@@ -94,7 +110,6 @@ func prepareMonero(t *testing.T) (kill func()) {
 		fmt.Println(monerodOut.String())
 		fmt.Println("=== Wallet RPC ===")
 		fmt.Println(walletRpcOut.String())
-		defer os.RemoveAll(temp)
 
 		err := monerod.Process.Kill()
 		assertions.Nil(err, "failed to kill monerod")
@@ -108,7 +123,7 @@ func prepareMonero(t *testing.T) (kill func()) {
 	}
 }
 
-func newClient(t *testing.T) (walletFilename, walletPassword string, client *rpc.Client) {
+func newClient(t *testing.T) (client *rpc.Client) {
 	assertions := assert.New(t)
 
 	var config = rpc.Config{
@@ -121,33 +136,7 @@ func newClient(t *testing.T) (walletFilename, walletPassword string, client *rpc
 	client = rpc.New(config)
 	assertions.NotNil(client, "failed to create client")
 
-	ctx, cancel := utils.NewContext()
-	defer cancel()
-
-	var createWallet = rpc.CreateWalletRequest{
-		Filename: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 14),
-		Password: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 32),
-		Language: "English",
-	}
-	err := client.CreateWallet(ctx, &createWallet)
-	assertions.Nil(err, "failed to create new wallet")
-
-	err = client.OpenWallet(ctx, &rpc.OpenWalletRequest{Filename: createWallet.Filename, Password: createWallet.Password})
-	assertions.Nil(err, "failed to open created wallet")
-	defer func() {
-		err = client.StopWallet(ctx)
-		assertions.Nil(err, "failed to stop wallet")
-
-		err = client.CloseWallet(ctx)
-		assertions.Nil(err, "failed to close wallet")
-	}()
-
-	_, err = client.CreateAccount(ctx, &rpc.CreateAccountRequest{
-		Label: testingAccount,
-	})
-	assertions.Nil(err, "failed to create account")
-
-	return createWallet.Filename, createWallet.Password, client
+	return client
 }
 
 func Test_Monero(t *testing.T) {
@@ -156,7 +145,7 @@ func Test_Monero(t *testing.T) {
 
 		assertions := assert.New(t)
 
-		walletFilename, walletPassword, client := newClient(t)
+		client := newClient(t)
 		log.Println(walletFilename, walletPassword)
 		var config = monero.Config{
 			Client:   client,
