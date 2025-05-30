@@ -2,7 +2,6 @@ package monero_test
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -22,7 +21,6 @@ const (
 	defaultUsername = "gateway"
 	defaultPassword = "gateway"
 	defaultCreds    = defaultUsername + ":" + defaultPassword
-	testingAccount  = "test"
 	daemonIp        = "127.0.0.1"
 	daemonPort      = "18081"
 	daemonAddress   = daemonIp + ":" + daemonPort
@@ -35,6 +33,7 @@ var (
 	walletDir      string
 	walletFilename string
 	walletPassword string
+	accountName    string
 )
 
 func init() {
@@ -49,6 +48,10 @@ func init() {
 	walletPassword = os.Getenv("WALLET_PASSWORD")
 	if walletPassword == "" {
 		log.Fatal("WALLET_PASSWORD not set")
+	}
+	accountName = os.Getenv("ACCOUNT_NAME")
+	if accountName == "" {
+		log.Fatal("ACCOUNT_NAME not set")
 	}
 }
 
@@ -106,10 +109,10 @@ func prepareMonero(t *testing.T) (kill func()) {
 	forceConnection(t, walletAddress)
 
 	return func() {
-		fmt.Println("=== Monerod RPC ===")
-		fmt.Println(monerodOut.String())
-		fmt.Println("=== Wallet RPC ===")
-		fmt.Println(walletRpcOut.String())
+		// fmt.Println("=== Monerod RPC ===")
+		// fmt.Println(monerodOut.String())
+		// fmt.Println("=== Wallet RPC ===")
+		// fmt.Println(walletRpcOut.String())
 
 		err := monerod.Process.Kill()
 		assertions.Nil(err, "failed to kill monerod")
@@ -149,7 +152,7 @@ func Test_Monero(t *testing.T) {
 		log.Println(walletFilename, walletPassword)
 		var config = monero.Config{
 			Client:   client,
-			Account:  testingAccount,
+			Account:  accountName,
 			Filename: walletFilename,
 			Password: walletPassword,
 		}

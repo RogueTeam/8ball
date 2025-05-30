@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"anarchy.ttfm.onion/gateway/blockchains"
 	"anarchy.ttfm.onion/gateway/utils"
@@ -298,18 +299,26 @@ func New(config Config) (w Wallet, err error) {
 		return w, fmt.Errorf("failed to list wallet accounts: %w", err)
 	}
 
-	for _, account := range accounts.SubaddressAccounts {
+	for index, account := range accounts.SubaddressAccounts {
+		log.Println("-", account.Label, "==", config.Account, "=", config.Account == account.Label)
 		if account.Label != config.Account {
 			continue
 		}
 
-		w.accountAddress = account.Address
-		w.accountAddressIndex = account.AddressIndex
+		var getAddress = rpc.GetAddressRequest{AccountIndex: uint64(index)}
+		addr, err := w.client.GetAddress(ctx, &getAddress)
+		if err != nil {
+			return w, fmt.Errorf("failed to get address: %w", err)
+		}
+
+		log.Println(account)
+		w.accountAddress = addr.Address
+		w.accountAddressIndex = uint64(index)
 		break
 	}
 
 	if w.accountAddress == "" {
-		return w, ErrNoAccountFound
+		return w, fmt.Errorf("%w: %s", ErrNoAccountFound, config.Account)
 	}
 
 	return
