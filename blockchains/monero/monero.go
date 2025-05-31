@@ -7,8 +7,8 @@ import (
 	"log"
 
 	"anarchy.ttfm.onion/gateway/blockchains"
+	"anarchy.ttfm.onion/gateway/blockchains/monero/walletrpc/rpc"
 	"anarchy.ttfm.onion/gateway/utils"
-	"github.com/dev-warrior777/go-monero/rpc"
 )
 
 type Config struct {
@@ -36,12 +36,12 @@ var _ blockchains.Wallet = (*Wallet)(nil)
 
 func (w *Wallet) validateAddress(ctx context.Context, address string) (err error) {
 	var validate = rpc.ValidateAddressRequest{
-		Address:        address,
-		AllowOpenalias: true,
+		Address: address,
+		//AllowOpenalias: true,
 	}
 	valid, err := w.client.ValidateAddress(ctx, &validate)
 	if err != nil {
-		return fmt.Errorf("failed to validate address: %w", err)
+		return fmt.Errorf("failed to validate address: %s: %w", address, err)
 	}
 
 	if !valid.Valid {
@@ -63,16 +63,14 @@ func (w *Wallet) NewAddress(req blockchains.NewAddressRequest) (address blockcha
 		return address, fmt.Errorf("failed to create address: %w", err)
 	}
 
-	err = w.client.StopWallet(ctx)
+	err = w.client.Store(ctx)
 	if err != nil {
 		return address, fmt.Errorf("failed to save changes: %w", err)
 	}
 
 	address = blockchains.Address{
-		AccountAddress: w.accountAddress,
-		AccountIndex:   w.accountAddressIndex,
-		Address:        addr.Address,
-		Index:          addr.AddressIndex,
+		Address: addr.Address,
+		Index:   addr.AddressIndex,
 	}
 	return
 }
@@ -134,7 +132,7 @@ func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep
 		return sweep, fmt.Errorf("failed to transfer monero: %w", err)
 	}
 
-	err = w.client.StopWallet(ctx)
+	err = w.client.Store(ctx)
 	if err != nil {
 		return sweep, fmt.Errorf("failed to save changes: %w", err)
 	}
@@ -209,7 +207,7 @@ func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains
 		return transfer, fmt.Errorf("failed to transfer monero: %w", err)
 	}
 
-	err = w.client.StopWallet(ctx)
+	err = w.client.Store(ctx)
 	if err != nil {
 		return transfer, fmt.Errorf("failed to save changes: %w", err)
 	}
@@ -274,7 +272,6 @@ func (w *Wallet) AddressBalance(req blockchains.AddressBalanceRequest) (balance 
 	}
 
 	balance = blockchains.Balance{
-		Address:  w.accountAddress,
 		Amount:   accountBalance.Balance,
 		Unlocked: accountBalance.UnlockedBalance,
 	}

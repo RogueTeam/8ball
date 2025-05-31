@@ -10,7 +10,6 @@ import (
 	"os/signal" // For signal handling
 	"path/filepath"
 	"syscall" // For specific signals like SIGINT, SIGTERM
-	"time"
 )
 
 const (
@@ -101,8 +100,6 @@ func main() {
 		if config.ID == 1 && config.MiningAddress != "" {
 			fmt.Printf("Node 1 is configured to mine to address: %s\n", config.MiningAddress)
 		}
-		// Give nodes a moment to start up and discover each other
-		time.Sleep(2 * time.Second)
 	}
 
 	// ---
@@ -140,6 +137,7 @@ func main() {
 
 		walletRpcCmd = exec.Command(walletRpcExecutable,
 			"--testnet",
+			"--disable-rpc-ban",
 			"--trusted-daemon",
 			"--non-interactive",
 			"--rpc-bind-ip", "127.0.0.1",

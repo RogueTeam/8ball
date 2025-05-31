@@ -71,6 +71,7 @@ type (
 		Fee uint64
 	}
 	Balance struct {
+		// Address of account or the subaddress itself
 		Address string
 		// Total balance of the address
 		Amount uint64

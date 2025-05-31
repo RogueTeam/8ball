@@ -2,50 +2,31 @@ package monero_test
 
 import (
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"testing"
-	"time"
 
 	"anarchy.ttfm.onion/gateway/blockchains/monero"
+	"anarchy.ttfm.onion/gateway/blockchains/monero/walletrpc/rpc"
 	"anarchy.ttfm.onion/gateway/blockchains/testsuite"
-	"github.com/dev-warrior777/go-monero/rpc"
 	"github.com/gabstv/httpdigest"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	walletDir      string
 	walletFilename string
 	accountName    string
 )
 
 func init() {
-	walletFilename = os.Getenv("WALLET_FILENAME")
+	walletFilename = os.Getenv("MONERO_WALLET_FILENAME")
 	if walletFilename == "" {
-		log.Fatal("WALLET_FILENAME not set")
+		log.Fatal("MONERO_WALLET_FILENAME not set")
 	}
-	accountName = os.Getenv("ACCOUNT_NAME")
+	accountName = os.Getenv("MONERO_ACCOUNT_NAME")
 	if accountName == "" {
-		log.Fatal("ACCOUNT_NAME not set")
+		log.Fatal("MONERO_ACCOUNT_NAME not set")
 	}
-}
-
-func forceConnection(t *testing.T, addr string) {
-	assertions := assert.New(t)
-	var found bool
-	for range 10 {
-		time.Sleep(time.Second)
-		conn, err := net.Dial("tcp", addr)
-		if err == nil {
-			conn.Close()
-			found = true
-			break
-		}
-	}
-
-	assertions.True(found, "could not connect to "+addr)
 }
 
 func newClient(t *testing.T) (client *rpc.Client) {
@@ -64,6 +45,17 @@ func newClient(t *testing.T) (client *rpc.Client) {
 	return client
 }
 
+type dataGenerator struct {
+}
+
+func (g *dataGenerator) Destination() (addr string) {
+	return os.Getenv("MONERO_DESTINATION")
+}
+
+func (g *dataGenerator) TransferAmount() (amount uint64) {
+	return 10000000000
+}
+
 func Test_Monero(t *testing.T) {
 	t.Run("Succeed", func(t *testing.T) {
 		assertions := assert.New(t)
@@ -77,7 +69,6 @@ func Test_Monero(t *testing.T) {
 		wallet, err := monero.New(config)
 		assertions.Nil(err, "failed to create wallet manager")
 
-		testsuite.Test(t, &wallet)
+		testsuite.Test(t, &wallet, &dataGenerator{})
 	})
-	// TODO: Implement me
 }

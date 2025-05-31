@@ -1,0 +1,5 @@
+#dev
+.vscode/
+monero-wallet-cli.log
+monero-wallet-rpc.log
+main
