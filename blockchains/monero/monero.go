@@ -63,6 +63,11 @@ func (w *Wallet) NewAddress(req blockchains.NewAddressRequest) (address blockcha
 		return address, fmt.Errorf("failed to create address: %w", err)
 	}
 
+	err = w.client.StopWallet(ctx)
+	if err != nil {
+		return address, fmt.Errorf("failed to save changes: %w", err)
+	}
+
 	address = blockchains.Address{
 		AccountAddress: w.accountAddress,
 		AccountIndex:   w.accountAddressIndex,
@@ -127,6 +132,11 @@ func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep
 	res, err := w.client.SweepAll(ctx, &trans)
 	if err != nil {
 		return sweep, fmt.Errorf("failed to transfer monero: %w", err)
+	}
+
+	err = w.client.StopWallet(ctx)
+	if err != nil {
+		return sweep, fmt.Errorf("failed to save changes: %w", err)
 	}
 
 	sweep = blockchains.Sweep{
@@ -199,6 +209,11 @@ func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains
 		return transfer, fmt.Errorf("failed to transfer monero: %w", err)
 	}
 
+	err = w.client.StopWallet(ctx)
+	if err != nil {
+		return transfer, fmt.Errorf("failed to save changes: %w", err)
+	}
+
 	transfer = blockchains.Transfer{
 		Address:     res.TxHash,
 		Source:      req.Source,
@@ -232,6 +247,11 @@ func (w *Wallet) Balance() (balance blockchains.Balance, err error) {
 func (w *Wallet) AddressBalance(req blockchains.AddressBalanceRequest) (balance blockchains.Balance, err error) {
 	ctx, cancel := utils.NewContext()
 	defer cancel()
+
+	err = w.validateAddress(ctx, req.Address)
+	if err != nil {
+		return balance, fmt.Errorf("failed to validate address: %w", err)
+	}
 
 	var getSrcIndex = rpc.GetAddressIndexRequest{
 		Address: req.Address,
