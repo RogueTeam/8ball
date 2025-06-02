@@ -75,6 +75,19 @@ func (w *Wallet) NewAddress(req blockchains.NewAddressRequest) (address blockcha
 	return
 }
 
+func convertPriority(p blockchains.Priority) (priority rpc.Priority, err error) {
+	switch p {
+	case blockchains.PriorityLow:
+		return rpc.PriorityUnimportant, nil
+	case blockchains.PriorityMedium:
+		return rpc.PriorityNormal, nil
+	case blockchains.PriorityHigh:
+		return rpc.PriorityElevated, nil
+	default:
+		return priority, blockchains.ErrInvalidPriority
+	}
+}
+
 func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep, err error) {
 	ctx, cancel := utils.NewContext()
 	defer cancel()
@@ -101,16 +114,9 @@ func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep
 		return sweep, fmt.Errorf("source address index doesn't match account: %w", ErrInvalidAddrIndex)
 	}
 
-	var priority rpc.Priority
-	switch req.Priority {
-	case blockchains.PriorityLow:
-		priority = rpc.PriorityUnimportant
-	case blockchains.PriorityMedium:
-		priority = rpc.PriorityNormal
-	case blockchains.PriorityHigh:
-		priority = rpc.PriorityElevated
-	default:
-		return sweep, blockchains.ErrInvalidPriority
+	priority, err := convertPriority(req.Priority)
+	if err != nil {
+		return sweep, fmt.Errorf("failed to convert priority: %w", err)
 	}
 
 	var trans = rpc.SweepAllRequest{
@@ -174,16 +180,9 @@ func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains
 		return transfer, fmt.Errorf("source address index doesn't match account: %w", ErrInvalidAddrIndex)
 	}
 
-	var priority rpc.Priority
-	switch req.Priority {
-	case blockchains.PriorityLow:
-		priority = rpc.PriorityUnimportant
-	case blockchains.PriorityMedium:
-		priority = rpc.PriorityNormal
-	case blockchains.PriorityHigh:
-		priority = rpc.PriorityElevated
-	default:
-		return transfer, blockchains.ErrInvalidPriority
+	priority, err := convertPriority(req.Priority)
+	if err != nil {
+		return transfer, fmt.Errorf("failed to convert priority: %w", err)
 	}
 
 	var trans = rpc.TransferRequest{

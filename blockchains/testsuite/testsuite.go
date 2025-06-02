@@ -30,8 +30,11 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGeneratpr) {
 
 		addr, err := w.NewAddress(blockchains.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
 		assertions.Nil(err, "failed to create new address")
-
 		t.Log(addr)
+
+		balance, err := w.AddressBalance(blockchains.AddressBalanceRequest{Address: addr.Address})
+		assertions.Nil(err, "failed to get address balance")
+		t.Log(balance)
 	})
 	t.Run("Transfer", func(t *testing.T) {
 		t.Run("To subaddress", func(t *testing.T) {
