@@ -70,6 +70,8 @@ func (w *Wallet) NewAccount(req blockchains.NewAccountRequest) (account blockcha
 
 func convertPriority(p blockchains.Priority) (priority rpc.Priority, err error) {
 	switch p {
+	case "":
+		return rpc.PriorityDefault, nil
 	case blockchains.PriorityLow:
 		return rpc.PriorityUnimportant, nil
 	case blockchains.PriorityMedium:
