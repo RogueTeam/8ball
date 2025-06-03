@@ -45,6 +45,7 @@ func main() {
 		"--non-interactive",
 		"--rpc-bind-ip", "127.0.0.1",
 		"--rpc-bind-port", *walletRpcPort,
+		"--rpc-login", "username:password",
 		"--daemon-address", *daemonAddress,
 		"--wallet-dir", baseDir,
 		"--log-file", walletLogFile.Name(),

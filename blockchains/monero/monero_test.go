@@ -15,6 +15,7 @@ import (
 
 var (
 	walletFilename string
+	walletPassword string
 	accountName    string
 )
 
@@ -22,6 +23,10 @@ func init() {
 	walletFilename = os.Getenv("MONERO_WALLET_FILENAME")
 	if walletFilename == "" {
 		log.Fatal("MONERO_WALLET_FILENAME not set")
+	}
+	walletPassword = os.Getenv("MONERO_WALLET_PASSWORD")
+	if walletPassword == "" {
+		log.Fatal("MONERO_WALLET_PASSWORD not set")
 	}
 	accountName = os.Getenv("MONERO_ACCOUNT_NAME")
 	if accountName == "" {
@@ -49,11 +54,15 @@ type dataGenerator struct {
 }
 
 func (g *dataGenerator) Destination() (addr string) {
-	return os.Getenv("MONERO_DESTINATION")
+	addr = os.Getenv("MONERO_DESTINATION")
+	if addr == "" {
+		log.Fatal("MONERO_DESTINATION not set")
+	}
+	return addr
 }
 
 func (g *dataGenerator) TransferAmount() (amount uint64) {
-	return 10000000000
+	return 1000000000
 }
 
 func Test_Monero(t *testing.T) {
@@ -65,6 +74,7 @@ func Test_Monero(t *testing.T) {
 			Client:   client,
 			Account:  accountName,
 			Filename: walletFilename,
+			Password: walletPassword,
 		}
 		wallet, err := monero.New(config)
 		assertions.Nil(err, "failed to create wallet manager")

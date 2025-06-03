@@ -1,3 +1,4 @@
 *.log
 nodes_data
 wallets
+wallet_rpc_data

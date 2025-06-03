@@ -28,7 +28,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGeneratpr) {
 	t.Run("NewAddress", func(t *testing.T) {
 		assertions := assert.New(t)
 
-		addr, err := w.NewAddress(blockchains.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
+		addr, err := w.NewAddress(blockchains.NewAccountRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
 		assertions.Nil(err, "failed to create new address")
 		t.Log(addr)
 
@@ -37,15 +37,15 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGeneratpr) {
 		t.Log(balance)
 	})
 	t.Run("Transfer", func(t *testing.T) {
-		t.Run("To subaddress", func(t *testing.T) {
+		t.Run("To Destination", func(t *testing.T) {
 			assertions := assert.New(t)
 
-			dst, err := w.NewAddress(blockchains.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
+			dst, err := w.NewAddress(blockchains.NewAccountRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
 			assertions.Nil(err, "failed to create new address")
 
 			transfer, err := w.Transfer(blockchains.TransferRequest{
 				Source:      dst.AccountAddress,
-				Destination: dst.Address,
+				Destination: gen.Destination(),
 				Amount:      gen.TransferAmount(),
 				Priority:    blockchains.PriorityLow,
 				UnlockTime:  0,

@@ -13,14 +13,23 @@ const (
 type Priority string
 
 type (
-	NewAddressRequest struct {
+	BalanceRequest struct {
+		// Index of the account
+		Index uint64
+	}
+	NewAccountRequest struct {
+		// Label for the new account
 		Label string
 	}
-	Address struct {
-		AccountAddress string
-		AccountIndex   uint64
-		Address        string
-		Index          uint64
+	Account struct {
+		// Address of the account
+		Address string
+		// Index of the account
+		Index uint64
+		// Total balance of the address
+		Balance uint64
+		// Balannce ready to use
+		UnlockedBalance uint64
 	}
 	SweepRequest struct {
 		// Source address
@@ -70,17 +79,6 @@ type (
 		// Fee applied to the transaction
 		Fee uint64
 	}
-	Balance struct {
-		// Address of account or the subaddress itself
-		Address string
-		// Total balance of the address
-		Amount uint64
-		// Balannce ready to use
-		Unlocked uint64
-	}
-	AddressBalanceRequest struct {
-		Address string
-	}
 	ValidateAddressRequest struct {
 		Address string
 	}
@@ -91,7 +89,7 @@ type (
 
 type Wallet interface {
 	// Create a new address associate with the account
-	NewAddress(req NewAddressRequest) (address Address, err error)
+	NewAccount(req NewAccountRequest) (account Account, err error)
 
 	// Transfers the entire balance of an address to destination
 	SweepAll(req SweepRequest) (sweep Sweep, err error)
@@ -99,11 +97,8 @@ type Wallet interface {
 	// Transfers to a destination address
 	Transfer(req TransferRequest) (transfer Transfer, err error)
 
-	// Returns the balance of the opened wallet account
-	Balance() (balance Balance, err error)
-
-	// Returns the balance of an specific address
-	AddressBalance(address AddressBalanceRequest) (balance Balance, err error)
+	// Returns the balance of the opened wallet
+	Balance(req BalanceRequest) (account Account, err error)
 
 	// Validate if a monero is valid or not
 	ValidateAddress(req ValidateAddressRequest) (valid ValidateAddress, err error)

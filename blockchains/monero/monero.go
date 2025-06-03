@@ -7,8 +7,8 @@ import (
 	"log"
 
 	"anarchy.ttfm.onion/gateway/blockchains"
-	"anarchy.ttfm.onion/gateway/blockchains/monero/walletrpc/rpc"
 	"anarchy.ttfm.onion/gateway/utils"
+	"github.com/dev-warrior777/go-monero/rpc"
 )
 
 type Config struct {
@@ -50,7 +50,7 @@ func (w *Wallet) validateAddress(ctx context.Context, address string) (err error
 	return nil
 }
 
-func (w *Wallet) NewAddress(req blockchains.NewAddressRequest) (address blockchains.Address, err error) {
+func (w *Wallet) NewAccount(req blockchains.NewAccountRequest) (account blockchains.Account, err error) {
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
@@ -60,17 +60,19 @@ func (w *Wallet) NewAddress(req blockchains.NewAddressRequest) (address blockcha
 	}
 	addr, err := w.client.CreateAddress(ctx, &createAddress)
 	if err != nil {
-		return address, fmt.Errorf("failed to create address: %w", err)
+		return account, fmt.Errorf("failed to create address: %w", err)
 	}
 
 	err = w.client.Store(ctx)
 	if err != nil {
-		return address, fmt.Errorf("failed to save changes: %w", err)
+		return account, fmt.Errorf("failed to save changes: %w", err)
 	}
 
-	address = blockchains.Address{
-		Address: addr.Address,
-		Index:   addr.AddressIndex,
+	account = blockchains.Account{
+		Address:         addr.Address,
+		Index:           addr.AddressIndex,
+		Balance:         0,
+		UnlockedBalance: 0,
 	}
 	return
 }
@@ -160,12 +162,12 @@ func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains
 
 	err = w.validateAddress(ctx, req.Source)
 	if err != nil {
-		return transfer, fmt.Errorf("failed to validate source address: %w", err)
+		return transfer, fmt.Errorf("failed to validate source address: %w: %s", err, req.Source)
 	}
 
 	err = w.validateAddress(ctx, req.Destination)
 	if err != nil {
-		return transfer, fmt.Errorf("failed to validate destination address: %w", err)
+		return transfer, fmt.Errorf("failed to validate destination address: %w: %s", err, req.Destination)
 	}
 
 	var getSrcIndex = rpc.GetAddressIndexRequest{

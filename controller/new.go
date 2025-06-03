@@ -58,7 +58,7 @@ func (c *Controller) New(currency Currency, dst string, amount uint64) (payment 
 		}
 
 		// Prepare new entry
-		receiver, err := wallet.NewAddress(blockchains.NewAddressRequest{Label: payment.Id.String()})
+		receiver, err := wallet.NewAddress(blockchains.NewAccountRequest{Label: payment.Id.String()})
 		if err != nil {
 			return fmt.Errorf("failed to prepare receiver address: %w", err)
 		}
