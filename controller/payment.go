@@ -28,7 +28,7 @@ type Payment struct {
 	// Fee percentage to discount from the transaction
 	Fee uint64
 	// Gateway address for receiving the transaction
-	ReceiverAddress string
+	ReceiverIndex uint64
 	// Destination address to forward funds
 	Destination string
 }

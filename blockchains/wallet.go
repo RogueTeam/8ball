@@ -13,7 +13,7 @@ const (
 type Priority string
 
 type (
-	BalanceRequest struct {
+	AccountRequest struct {
 		// Index of the account
 		Index uint64
 	}
@@ -32,8 +32,8 @@ type (
 		UnlockedBalance uint64
 	}
 	SweepRequest struct {
-		// Source address
-		Source string
+		// Source account index
+		SourceIndex uint64
 		// Destination Address
 		Destination string
 		// Amount transfered
@@ -46,8 +46,8 @@ type (
 	Sweep struct {
 		// Address of the transaction
 		Address []string
-		// Source address
-		Source string
+		// Source account index
+		SourceIndex uint64
 		// Destination Address
 		Destination string
 		// Amount transfered
@@ -56,8 +56,8 @@ type (
 		Fee []uint64
 	}
 	TransferRequest struct {
-		// Source address
-		Source string
+		// Source account index
+		SourceIndex uint64
 		// Destination Address
 		Destination string
 		// Amount transfered
@@ -70,8 +70,8 @@ type (
 	Transfer struct {
 		// Address of the transaction
 		Address string
-		// Source address
-		Source string
+		// Source account index
+		SourceIndex uint64
 		// Destination Address
 		Destination string
 		// Amount transfered
@@ -98,7 +98,7 @@ type Wallet interface {
 	Transfer(req TransferRequest) (transfer Transfer, err error)
 
 	// Returns the balance of the opened wallet
-	Balance(req BalanceRequest) (account Account, err error)
+	Account(req AccountRequest) (account Account, err error)
 
 	// Validate if a monero is valid or not
 	ValidateAddress(req ValidateAddressRequest) (valid ValidateAddress, err error)

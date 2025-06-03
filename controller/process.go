@@ -47,14 +47,14 @@ func (c *Controller) Process() (err error) {
 				continue
 			}
 
-			balance, err := wallet.AddressBalance(blockchains.AddressBalanceRequest{Address: payment.ReceiverAddress})
+			account, err := wallet.Account(blockchains.AccountRequest{Index: payment.ReceiverIndex})
 			if err != nil {
 				err = fmt.Errorf("failed to retrieve middle address balance: %w", err)
 				log.Println(err)
 				continue
 			}
 
-			if balance.Unlocked < payment.Amount {
+			if account.UnlockedBalance < payment.Amount {
 				log.Println("balance is not ready yet")
 				continue
 			}

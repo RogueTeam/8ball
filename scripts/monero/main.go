@@ -8,14 +8,13 @@ import (
 	"os"
 	"os/exec"
 	"os/signal" // For signal handling
-	"path/filepath"
-	"syscall" // For specific signals like SIGINT, SIGTERM
+	"syscall"   // For specific signals like SIGINT, SIGTERM
 )
 
 const (
 	baseDir             = "./wallet_rpc_data" // Changed base directory for wallet data
 	walletRpcExecutable = "monero-wallet-rpc" // Ensure this is in your PATH or provide full path
-	defaultTestnetPort  = "38081"             // Default Monero testnet RPC port
+	defaultTestnetPort  = "28081"             // Default Monero testnet RPC port
 )
 
 func main() {
@@ -30,12 +29,6 @@ func main() {
 		log.Fatalf("Error creating base directory %s: %v", baseDir, err)
 	}
 
-	walletLogFile, err := os.Create(filepath.Join(baseDir, "wallet_rpc.log"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer walletLogFile.Close() // Ensure the log file is closed on exit
-
 	fmt.Printf("\nStarting Monero Wallet RPC on port %s, connecting to daemon at %s...\n", *walletRpcPort, *daemonAddress)
 
 	walletRpcCmd := exec.Command(walletRpcExecutable,
@@ -48,17 +41,17 @@ func main() {
 		"--rpc-login", "username:password",
 		"--daemon-address", *daemonAddress,
 		"--wallet-dir", baseDir,
-		"--log-file", walletLogFile.Name(),
+		"--log-level", "0",
 		"--confirm-external-bind", // Required for external connections
 	)
-	walletRpcCmd.Stdout = walletLogFile
-	walletRpcCmd.Stderr = walletLogFile
+	walletRpcCmd.Stdout = os.Stdout
+	walletRpcCmd.Stderr = os.Stderr
 
-	err = walletRpcCmd.Start()
+	err := walletRpcCmd.Start()
 	if err != nil {
 		log.Fatalf("Error starting monero-wallet-rpc: %v", err)
 	}
-	fmt.Printf("Monero Wallet RPC started on 127.0.0.1:%s (PID: %d). Logs written to %s\n", *walletRpcPort, walletRpcCmd.Process.Pid, walletLogFile.Name())
+	fmt.Printf("Monero Wallet RPC started on 127.0.0.1:%s (PID: %d). Logs written to stdout and stderr\n", *walletRpcPort, walletRpcCmd.Process.Pid)
 
 	// Defer stopping the wallet RPC process
 	defer func() {

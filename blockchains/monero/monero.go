@@ -4,26 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"anarchy.ttfm.onion/gateway/blockchains"
+	"anarchy.ttfm.onion/gateway/blockchains/monero/walletrpc/rpc"
 	"anarchy.ttfm.onion/gateway/utils"
-	"github.com/dev-warrior777/go-monero/rpc"
 )
 
 type Config struct {
 	Client *rpc.Client
-
-	Account  string
-	Filename string
-	Password string
 }
 
 type Wallet struct {
 	client *rpc.Client
-
-	accountAddress      string
-	accountAddressIndex uint64
 }
 
 var (
@@ -54,13 +46,12 @@ func (w *Wallet) NewAccount(req blockchains.NewAccountRequest) (account blockcha
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	var createAddress = rpc.CreateAddressRequest{
-		AccountIndex: w.accountAddressIndex,
-		Label:        req.Label,
+	var createAccount = rpc.CreateAccountRequest{
+		Label: req.Label,
 	}
-	addr, err := w.client.CreateAddress(ctx, &createAddress)
+	a, err := w.client.CreateAccount(ctx, &createAccount)
 	if err != nil {
-		return account, fmt.Errorf("failed to create address: %w", err)
+		return account, fmt.Errorf("failed to create account: %w", err)
 	}
 
 	err = w.client.Store(ctx)
@@ -69,8 +60,8 @@ func (w *Wallet) NewAccount(req blockchains.NewAccountRequest) (account blockcha
 	}
 
 	account = blockchains.Account{
-		Address:         addr.Address,
-		Index:           addr.AddressIndex,
+		Address:         a.Address,
+		Index:           a.AccountIndex,
 		Balance:         0,
 		UnlockedBalance: 0,
 	}
@@ -94,26 +85,9 @@ func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	err = w.validateAddress(ctx, req.Source)
-	if err != nil {
-		return sweep, fmt.Errorf("failed to validate source address: %w", err)
-	}
-
 	err = w.validateAddress(ctx, req.Destination)
 	if err != nil {
 		return sweep, fmt.Errorf("failed to validate destination address: %w", err)
-	}
-
-	var getSrcIndex = rpc.GetAddressIndexRequest{
-		Address: req.Source,
-	}
-	addrIndex, err := w.client.GetAddressIndex(ctx, &getSrcIndex)
-	if err != nil {
-		return sweep, fmt.Errorf("failed to get source address index: %w", err)
-	}
-
-	if addrIndex.Index.Major != w.accountAddressIndex {
-		return sweep, fmt.Errorf("source address index doesn't match account: %w", ErrInvalidAddrIndex)
 	}
 
 	priority, err := convertPriority(req.Priority)
@@ -123,10 +97,8 @@ func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep
 
 	var trans = rpc.SweepAllRequest{
 		Address:      req.Destination,
-		AccountIndex: w.accountAddressIndex,
-		SubaddrIndices: []uint64{
-			addrIndex.Index.Minor,
-		},
+		AccountIndex: req.SourceIndex,
+		// SubaddrIndices: []uint64{},
 		Priority:      priority,
 		RingSize:      16, // Fixed by the network. May require update in the future
 		UnlockTime:    req.UnlockTime,
@@ -147,7 +119,7 @@ func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep
 
 	sweep = blockchains.Sweep{
 		Address:     res.TxHashList,
-		Source:      req.Source,
+		SourceIndex: req.SourceIndex,
 		Destination: req.Destination,
 		Amount:      utils.MapInt[int, uint64](res.AmountList),
 		Fee:         utils.MapInt[int, uint64](res.FeeList),
@@ -160,26 +132,9 @@ func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	err = w.validateAddress(ctx, req.Source)
-	if err != nil {
-		return transfer, fmt.Errorf("failed to validate source address: %w: %s", err, req.Source)
-	}
-
 	err = w.validateAddress(ctx, req.Destination)
 	if err != nil {
 		return transfer, fmt.Errorf("failed to validate destination address: %w: %s", err, req.Destination)
-	}
-
-	var getSrcIndex = rpc.GetAddressIndexRequest{
-		Address: req.Source,
-	}
-	addrIndex, err := w.client.GetAddressIndex(ctx, &getSrcIndex)
-	if err != nil {
-		return transfer, fmt.Errorf("failed to get source address index: %w", err)
-	}
-
-	if addrIndex.Index.Major != w.accountAddressIndex {
-		return transfer, fmt.Errorf("source address index doesn't match account: %w", ErrInvalidAddrIndex)
 	}
 
 	priority, err := convertPriority(req.Priority)
@@ -191,10 +146,8 @@ func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains
 		Destinations: []rpc.Destination{
 			{Amount: req.Amount, Address: req.Destination},
 		},
-		AccountIndex: w.accountAddressIndex,
-		SubaddrIndices: []uint64{
-			addrIndex.Index.Minor,
-		},
+		AccountIndex: req.SourceIndex,
+		// SubaddrIndices: []uint64{},
 		Priority:      priority,
 		RingSize:      16, // Fixed by the network. May require update in the future
 		UnlockTime:    req.UnlockTime,
@@ -215,7 +168,7 @@ func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains
 
 	transfer = blockchains.Transfer{
 		Address:     res.TxHash,
-		Source:      req.Source,
+		SourceIndex: req.SourceIndex,
 		Destination: req.Destination,
 		Amount:      res.Amount,
 		Fee:         res.Fee,
@@ -224,57 +177,27 @@ func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains
 	return
 }
 
-func (w *Wallet) Balance() (balance blockchains.Balance, err error) {
+func (w *Wallet) Account(req blockchains.AccountRequest) (account blockchains.Account, err error) {
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	accountBalance, err := w.client.GetBalance(ctx, &rpc.GetBalanceRequest{
-		AccountIndex: w.accountAddressIndex,
-	})
+	addr, err := w.client.GetAddress(ctx, &rpc.GetAddressRequest{AccountIndex: req.Index})
 	if err != nil {
-		return balance, fmt.Errorf("failed to get account balance: %w", err)
-	}
-
-	balance = blockchains.Balance{
-		Address:  w.accountAddress,
-		Amount:   accountBalance.Balance,
-		Unlocked: accountBalance.UnlockedBalance,
-	}
-	return
-}
-
-func (w *Wallet) AddressBalance(req blockchains.AddressBalanceRequest) (balance blockchains.Balance, err error) {
-	ctx, cancel := utils.NewContext()
-	defer cancel()
-
-	err = w.validateAddress(ctx, req.Address)
-	if err != nil {
-		return balance, fmt.Errorf("failed to validate address: %w", err)
-	}
-
-	var getSrcIndex = rpc.GetAddressIndexRequest{
-		Address: req.Address,
-	}
-	addrIndex, err := w.client.GetAddressIndex(ctx, &getSrcIndex)
-	if err != nil {
-		return balance, fmt.Errorf("failed to get source address index: %w", err)
-	}
-
-	if addrIndex.Index.Major != w.accountAddressIndex {
-		return balance, fmt.Errorf("source address index doesn't match account: %w", ErrInvalidAddrIndex)
+		return account, fmt.Errorf("failed to get account address: %w", err)
 	}
 
 	accountBalance, err := w.client.GetBalance(ctx, &rpc.GetBalanceRequest{
-		AccountIndex:   w.accountAddressIndex,
-		AddressIndices: []uint64{addrIndex.Index.Minor},
+		AccountIndex: req.Index,
 	})
 	if err != nil {
-		return balance, fmt.Errorf("failed to get account balance: %w", err)
+		return account, fmt.Errorf("failed to get account balance: %w", err)
 	}
 
-	balance = blockchains.Balance{
-		Amount:   accountBalance.Balance,
-		Unlocked: accountBalance.UnlockedBalance,
+	account = blockchains.Account{
+		Address:         addr.Address,
+		Index:           req.Index,
+		Balance:         accountBalance.Balance,
+		UnlockedBalance: accountBalance.UnlockedBalance,
 	}
 	return
 }
@@ -294,50 +217,7 @@ func (w *Wallet) ValidateAddress(req blockchains.ValidateAddressRequest) (valid 
 	return
 }
 
-func New(config Config) (w Wallet, err error) {
-	ctx, cancel := utils.NewContext()
-	defer cancel()
-
+func New(config Config) (w Wallet) {
 	w.client = config.Client
-
-	// Open Monero wallet
-	var openWallet = rpc.OpenWalletRequest{
-		Filename: config.Filename,
-		Password: config.Password,
-	}
-	err = w.client.OpenWallet(ctx, &openWallet)
-	if err != nil {
-		return w, fmt.Errorf("failed to open wallet: %w", err)
-	}
-
-	// Get account index
-	var getAccounts rpc.GetAccountsRequest
-	accounts, err := w.client.GetAccounts(ctx, &getAccounts)
-	if err != nil {
-		return w, fmt.Errorf("failed to list wallet accounts: %w", err)
-	}
-
-	for index, account := range accounts.SubaddressAccounts {
-		log.Println("-", account.Label, "==", config.Account, "=", config.Account == account.Label)
-		if account.Label != config.Account {
-			continue
-		}
-
-		var getAddress = rpc.GetAddressRequest{AccountIndex: uint64(index)}
-		addr, err := w.client.GetAddress(ctx, &getAddress)
-		if err != nil {
-			return w, fmt.Errorf("failed to get address: %w", err)
-		}
-
-		log.Println(account)
-		w.accountAddress = addr.Address
-		w.accountAddressIndex = uint64(index)
-		break
-	}
-
-	if w.accountAddress == "" {
-		return w, fmt.Errorf("%w: %s", ErrNoAccountFound, config.Account)
-	}
-
-	return
+	return w
 }

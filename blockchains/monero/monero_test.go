@@ -9,6 +9,7 @@ import (
 	"anarchy.ttfm.onion/gateway/blockchains/monero"
 	"anarchy.ttfm.onion/gateway/blockchains/monero/walletrpc/rpc"
 	"anarchy.ttfm.onion/gateway/blockchains/testsuite"
+	"anarchy.ttfm.onion/gateway/utils"
 	"github.com/gabstv/httpdigest"
 	"github.com/stretchr/testify/assert"
 )
@@ -53,16 +54,8 @@ func newClient(t *testing.T) (client *rpc.Client) {
 type dataGenerator struct {
 }
 
-func (g *dataGenerator) Destination() (addr string) {
-	addr = os.Getenv("MONERO_DESTINATION")
-	if addr == "" {
-		log.Fatal("MONERO_DESTINATION not set")
-	}
-	return addr
-}
-
 func (g *dataGenerator) TransferAmount() (amount uint64) {
-	return 1000000000
+	return 10000000000
 }
 
 func Test_Monero(t *testing.T) {
@@ -70,14 +63,19 @@ func Test_Monero(t *testing.T) {
 		assertions := assert.New(t)
 
 		client := newClient(t)
-		var config = monero.Config{
-			Client:   client,
-			Account:  accountName,
+
+		ctx, cancel := utils.NewContext()
+		defer cancel()
+		err := client.OpenWallet(ctx, &rpc.OpenWalletRequest{
 			Filename: walletFilename,
 			Password: walletPassword,
+		})
+		assertions.Nil(err, "failed to open wallet")
+
+		var config = monero.Config{
+			Client: client,
 		}
-		wallet, err := monero.New(config)
-		assertions.Nil(err, "failed to create wallet manager")
+		wallet := monero.New(config)
 
 		testsuite.Test(t, &wallet, &dataGenerator{})
 	})
