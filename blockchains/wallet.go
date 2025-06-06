@@ -36,8 +36,6 @@ type (
 		SourceIndex uint64
 		// Destination Address
 		Destination string
-		// Amount transfered
-		Amount uint64
 		// Priority of the transaction
 		Priority Priority
 		// Unlock time (blocks)

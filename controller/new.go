@@ -15,18 +15,8 @@ import (
 // It uses the default timeout in order to prevent infinite entries
 // id is the id to be used for future checks
 // fee is the percentage to be discounted from the entire transaction
-func (c *Controller) New(currency Currency, dst string, amount uint64) (payment Payment, err error) {
-	err = currency.Validate()
-	if err != nil {
-		return payment, err
-	}
-
-	wallet, found := c.wallets[currency]
-	if !found {
-		return payment, ErrNoHandlerForCurrency
-	}
-
-	valid, err := wallet.ValidateAddress(blockchains.ValidateAddressRequest{Address: dst})
+func (c *Controller) New(dst string, amount uint64, priority blockchains.Priority) (payment Payment, err error) {
+	valid, err := c.wallet.ValidateAddress(blockchains.ValidateAddressRequest{Address: dst})
 	if err != nil {
 		return payment, fmt.Errorf("failed to validate dst address: %w", err)
 	}
@@ -39,9 +29,9 @@ func (c *Controller) New(currency Currency, dst string, amount uint64) (payment 
 		payment = Payment{
 			Id:          uuid.New(),
 			Status:      StatusPending,
-			Currency:    currency,
 			Expiration:  time.Now().Add(c.timeout),
 			Amount:      amount,
+			Priority:    priority,
 			Fee:         c.fee,
 			Destination: dst,
 		}
@@ -58,7 +48,7 @@ func (c *Controller) New(currency Currency, dst string, amount uint64) (payment 
 		}
 
 		// Prepare new entry
-		receiver, err := wallet.NewAccount(blockchains.NewAccountRequest{Label: payment.Id.String()})
+		receiver, err := c.wallet.NewAccount(blockchains.NewAccountRequest{Label: payment.Id.String()})
 		if err != nil {
 			return fmt.Errorf("failed to prepare receiver address: %w", err)
 		}

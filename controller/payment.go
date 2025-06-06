@@ -3,6 +3,7 @@ package controller
 import (
 	"time"
 
+	"anarchy.ttfm.onion/gateway/blockchains"
 	"github.com/google/uuid"
 )
 
@@ -12,6 +13,7 @@ const (
 	StatusPending   Status = "pending"
 	StatusCompleted Status = "completed"
 	StatusExpired   Status = "expired"
+	StatusError     Status = "error"
 )
 
 type Payment struct {
@@ -19,16 +21,22 @@ type Payment struct {
 	Id uuid.UUID
 	// Status of the payment
 	Status Status
-	// Currency used in the transaction
-	Currency Currency
 	// Expiration time of the payment
 	Expiration time.Time
 	// Overall amount to expect from the transaction
 	Amount uint64
+	// Priority of the transaction
+	Priority blockchains.Priority
 	// Fee percentage to discount from the transaction
 	Fee uint64
 	// Gateway address for receiving the transaction
 	ReceiverIndex uint64
 	// Destination address to forward funds
 	Destination string
+	// Error message
+	Error string
+	// Confirmation if Fee could be discounted and payed to beneficiary
+	FeePayed bool
+	// Confirmation if destination could receive its money
+	DestinationPayed bool
 }

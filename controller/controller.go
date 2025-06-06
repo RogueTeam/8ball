@@ -9,15 +9,15 @@ import (
 )
 
 var (
-	ErrNoHandlerForCurrency = errors.New("no handler for currency")
-	ErrPaymentNotFound      = errors.New("payment not found")
+	ErrPaymentNotFound = errors.New("payment not found")
 )
 
 type Controller struct {
-	db      *badger.DB
-	fee     uint64
-	timeout time.Duration
-	wallets map[Currency]blockchains.Wallet
+	db          *badger.DB
+	fee         uint64
+	timeout     time.Duration
+	beneficiary string
+	wallet      blockchains.Wallet
 }
 
 type Config struct {
@@ -27,15 +27,18 @@ type Config struct {
 	Fee uint64
 	// Default Timeout until payment in canceled
 	Timeout time.Duration
+	// Beneficiaries address per currency. To these address the money is going to be payed
+	Beneficiary string
 	// Wallets to be used in the transactions
-	Wallets map[Currency]blockchains.Wallet
+	Wallet blockchains.Wallet
 }
 
 func New(config *Config) (ctrl Controller) {
 	ctrl.db = config.DB
 	ctrl.fee = config.Fee
 	ctrl.timeout = config.Timeout
-	ctrl.wallets = config.Wallets
+	ctrl.beneficiary = config.Beneficiary
+	ctrl.wallet = config.Wallet
 
 	return ctrl
 }
