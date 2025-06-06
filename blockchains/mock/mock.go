@@ -75,29 +75,48 @@ func (m *Mock) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep, 
 		return sweep, ErrAccountNotFound
 	}
 
-	if sourceAccount.Balance == 0 {
+	if sourceAccount.UnlockedBalance == 0 {
 		return sweep, fmt.Errorf("source account %d has no balance to sweep", req.SourceIndex)
 	}
 
 	// For a mock, we just move the balance and generate a mock transaction hash.
-	transferredAmount := sourceAccount.Balance
+	var transferredAmount uint64
+	var appliedFee uint64
+	if sourceAccount.UnlockedBalance > DefaultFee {
+		transferredAmount = sourceAccount.UnlockedBalance - transferredAmount
+		appliedFee = transferredAmount
+	} else {
+		transferredAmount = sourceAccount.UnlockedBalance
+	}
+
 	sourceAccount.Balance = 0
 	sourceAccount.UnlockedBalance = 0
 	m.accounts[req.SourceIndex] = sourceAccount
 
 	mockTxHash := fmt.Sprintf("mock_sweep_tx_%d_%s", req.SourceIndex, req.Destination)
-	mockFee := uint64(100) // Mock fee
 
 	sweep = blockchains.Sweep{
 		Address:     []string{mockTxHash},
 		SourceIndex: req.SourceIndex,
 		Destination: req.Destination,
-		Amount:      []uint64{transferredAmount - mockFee}, // Simulate fee deduction
-		Fee:         []uint64{mockFee},
+		Amount:      []uint64{transferredAmount}, // Simulate fee deduction
+		Fee:         []uint64{appliedFee},
 	}
 	m.transactions[mockTxHash] = sweep // Track the transaction
+
+	for index, account := range m.accounts {
+		if account.Address != req.Destination {
+			continue
+		}
+		account.Balance += transferredAmount
+		account.UnlockedBalance += transferredAmount
+		m.accounts[index] = account
+		break
+	}
 	return sweep, nil
 }
+
+const DefaultFee = 50
 
 // Transfer transfers a specified amount to a destination address.
 func (m *Mock) Transfer(req blockchains.TransferRequest) (transfer blockchains.Transfer, err error) {
@@ -113,26 +132,35 @@ func (m *Mock) Transfer(req blockchains.TransferRequest) (transfer blockchains.T
 		return transfer, ErrAccountNotFound
 	}
 
-	if sourceAccount.Balance < req.Amount {
+	if sourceAccount.UnlockedBalance < DefaultFee+req.Amount {
 		return transfer, ErrInsufficientBalance
 	}
 
 	// For a mock, we just deduct the balance and generate a mock transaction hash.
-	sourceAccount.Balance -= req.Amount
-	sourceAccount.UnlockedBalance -= req.Amount // Assuming transferred amount was unlocked
+	sourceAccount.Balance -= req.Amount + DefaultFee
+	sourceAccount.UnlockedBalance -= req.Amount + DefaultFee // Assuming transferred amount was unlocked
 	m.accounts[req.SourceIndex] = sourceAccount
 
 	mockTxHash := fmt.Sprintf("mock_transfer_tx_%d_%s_%d", req.SourceIndex, req.Destination, req.Amount)
-	mockFee := uint64(50) // Mock fee
 
 	transfer = blockchains.Transfer{
 		Address:     mockTxHash,
 		SourceIndex: req.SourceIndex,
 		Destination: req.Destination,
-		Amount:      req.Amount - mockFee, // Simulate fee deduction
-		Fee:         mockFee,
+		Amount:      req.Amount, // Simulate fee deduction
+		Fee:         DefaultFee,
 	}
 	m.transactions[mockTxHash] = transfer // Track the transaction
+
+	for index, account := range m.accounts {
+		if account.Address != req.Destination {
+			continue
+		}
+		account.Balance += req.Amount
+		account.UnlockedBalance += req.Amount
+		m.accounts[index] = account
+		break
+	}
 	return transfer, nil
 }
 
