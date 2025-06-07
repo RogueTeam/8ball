@@ -33,7 +33,7 @@ type Config struct {
 	Wallet blockchains.Wallet
 }
 
-func New(config *Config) (ctrl Controller) {
+func New(config Config) (ctrl Controller) {
 	ctrl.db = config.DB
 	ctrl.fee = config.Fee
 	ctrl.timeout = config.Timeout

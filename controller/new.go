@@ -37,12 +37,7 @@ func (c *Controller) New(dst string, amount uint64, priority blockchains.Priorit
 		}
 
 		// Pending entry
-		var pendingEntry = badger.Entry{
-			Key:       []byte(fmt.Sprintf("/pending/%s", payment.Id)),
-			Value:     nil,
-			ExpiresAt: uint64(payment.Expiration.Unix()),
-		}
-		err = txn.SetEntry(&pendingEntry)
+		err = txn.Set([]byte(fmt.Sprintf("/pending/%s", payment.Id)), payment.Id[:])
 		if err != nil {
 			return fmt.Errorf("failed to add pending key: %w", err)
 		}
@@ -58,11 +53,11 @@ func (c *Controller) New(dst string, amount uint64, priority blockchains.Priorit
 
 		// Save entry
 		paymentKey := fmt.Sprintf("/payments/%s", payment.Id)
-		paymentStatus, err := json.Marshal(&payment)
+		paymentContents, err := json.Marshal(&payment)
 		if err != nil {
 			return fmt.Errorf("failed to marshal payment status: %w", err)
 		}
-		err = txn.Set([]byte(paymentKey), paymentStatus)
+		err = txn.Set([]byte(paymentKey), paymentContents)
 		if err != nil {
 			return fmt.Errorf("failed to set payment status: %w", err)
 		}

@@ -24,9 +24,7 @@ func (c *Controller) processStreamPendingPayments() (payments chan Payment, err 
 
 		err <- c.db.View(func(txn *badger.Txn) (err error) {
 			it := txn.NewIterator(badger.IteratorOptions{
-				Prefix:         pendingPrefix,
-				PrefetchSize:   1_000,
-				PrefetchValues: true,
+				Prefix: pendingPrefix,
 			})
 			defer it.Close()
 

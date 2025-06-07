@@ -1,0 +1,74 @@
+package controller_test
+
+import (
+	"testing"
+	"time"
+
+	"anarchy.ttfm.onion/gateway/blockchains"
+	"anarchy.ttfm.onion/gateway/blockchains/mock"
+	"anarchy.ttfm.onion/gateway/controller"
+	"anarchy.ttfm.onion/gateway/random"
+	"github.com/dgraph-io/badger/v4"
+	"github.com/stretchr/testify/assert"
+)
+
+func Test_Integration(t *testing.T) {
+	t.Run("Succeed", func(t *testing.T) {
+		assertions := assert.New(t)
+
+		wallet := mock.New()
+
+		label1 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
+		beneficiary, err := wallet.NewAccount(blockchains.NewAccountRequest{Label: label1})
+		assertions.Nil(err, "failed to create beneficiary account")
+
+		options := badger.
+			DefaultOptions("").
+			WithInMemory(true)
+		db, err := badger.Open(options)
+		assertions.Nil(err, "failed to open database")
+		var config = controller.Config{
+			DB:          db,
+			Fee:         1,
+			Timeout:     5 * time.Second,
+			Beneficiary: beneficiary.Address,
+			Wallet:      wallet,
+		}
+		ctrl := controller.New(config)
+		// t.Logf("Create controller: %+v", ctrl)
+
+		label2 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
+		dst, err := wallet.NewAccount(blockchains.NewAccountRequest{Label: label2})
+		assertions.Nil(err, "failed to create dst account")
+
+		payment, err := ctrl.New(dst.Address, 10_000, blockchains.PriorityHigh)
+		assertions.Nil(err, "failed to create payment")
+		// t.Logf("Create payment: %+v", payment)
+
+		// Query first
+		firstQuery, err := ctrl.QueryOrUpdate(payment.Id)
+		assertions.Nil(err, "failed to query first payment")
+
+		assertions.Equal(payment.Id, firstQuery.Id, "Don't equal")
+
+		// Pay the dst
+		_, err = wallet.Transfer(blockchains.TransferRequest{
+			SourceIndex: 0,
+			Destination: dst.Address,
+			Amount:      10_000,
+			Priority:    blockchains.PriorityHigh,
+			UnlockTime:  0,
+		})
+		assertions.Nil(err, "failed to transfer to destination")
+
+		// Process
+		err = ctrl.Process()
+		assertions.Nil(err, "failed to process payments")
+
+		// Verify payment
+		secondQuery, err := ctrl.QueryOrUpdate(payment.Id)
+		assertions.Nil(err, "failed to query payment")
+
+		assertions.Equal(controller.StatusCompleted, secondQuery.Status, "status don't match")
+	})
+}
