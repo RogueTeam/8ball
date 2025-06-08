@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -26,31 +25,26 @@ func (c *Controller) New(dst string, amount uint64, priority blockchains.Priorit
 	}
 
 	err = c.db.Update(func(txn *badger.Txn) (err error) {
-		payment = Payment{
-			Id:          uuid.New(),
-			Status:      StatusPending,
-			Expiration:  time.Now().Add(c.timeout),
-			Amount:      amount,
-			Priority:    priority,
-			Fee:         c.fee,
-			Beneficiary: dst,
-		}
-
 		// Prepare new entry
 		receiver, err := c.wallet.NewAccount(blockchains.NewAccountRequest{Label: payment.Id.String()})
 		if err != nil {
 			return fmt.Errorf("failed to prepare receiver address: %w", err)
 		}
 
-		// Add address to output struct
-		payment.Receiver = receiver.Address
-		payment.ReceiverIndex = receiver.Index
+		payment = Payment{
+			Id:            uuid.New(),
+			Status:        StatusPending,
+			Expiration:    time.Now().Add(c.timeout),
+			Amount:        amount,
+			Priority:      priority,
+			Fee:           c.fee,
+			Beneficiary:   dst,
+			Receiver:      receiver.Address,
+			ReceiverIndex: receiver.Index,
+		}
 
 		// Save entry
-		paymentContents, err := json.Marshal(&payment)
-		if err != nil {
-			return fmt.Errorf("failed to marshal payment status: %w", err)
-		}
+		paymentContents := payment.Bytes()
 
 		// Pending entry
 		pendingKey := PendingKey(payment.Id)

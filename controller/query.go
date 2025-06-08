@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -22,7 +21,7 @@ func (c *Controller) Query(id uuid.UUID) (payment Payment, err error) {
 		}
 
 		err = entry.Value(func(val []byte) (err error) {
-			err = json.Unmarshal(val, &payment)
+			err = payment.FromBytes(val)
 			if err != nil {
 				return fmt.Errorf("failed to unmarshal payment: %w", err)
 			}

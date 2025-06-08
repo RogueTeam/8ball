@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -35,7 +34,7 @@ func (c *Controller) processStreamPendingPayments() (payments chan Payment, err 
 				item := it.Item()
 
 				err = item.Value(func(val []byte) (err error) {
-					err = json.Unmarshal(val, &payment)
+					err = payment.FromBytes(val)
 					if err != nil {
 						return fmt.Errorf("failed to unmarshal to payment: %w", err)
 					}
@@ -75,10 +74,7 @@ func (c *Controller) deletePendingPayment(p Payment) {
 // This utility function is used for those scenarios in which the payment has changed state
 func (c *Controller) savePaymentState(p Payment) {
 	err := c.db.Update(func(txn *badger.Txn) (err error) {
-		contents, err := json.Marshal(&p)
-		if err != nil {
-			return fmt.Errorf("failed to marshal payment: %w", err)
-		}
+		contents := p.Bytes()
 
 		paymentKey := PaymentKey(p.Id)
 

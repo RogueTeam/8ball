@@ -53,7 +53,7 @@ func Benchmark_Insertion(b *testing.B) {
 	ctrl := controller.New(config)
 
 	// Define the number of payments to create for this benchmark scenario
-	const numPayments = 1_000_000 // Ten million payments
+	const numPayments = 1_000_000 // million payments
 
 	receiverLabel := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
 	receiver, err := wallet.NewAccount(blockchains.NewAccountRequest{Label: receiverLabel})

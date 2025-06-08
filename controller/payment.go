@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -50,4 +51,13 @@ type Payment struct {
 	FeePayed bool
 	// Confirmation if destination could receive its money
 	DestinationPayed bool
+}
+
+func (p *Payment) Bytes() (bytes []byte) {
+	bytes, _ = json.Marshal(p)
+	return bytes
+}
+
+func (p *Payment) FromBytes(b []byte) (err error) {
+	return json.Unmarshal(b, p)
 }
