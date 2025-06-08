@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	"anarchy.ttfm.onion/gateway/blockchains"
@@ -16,6 +17,14 @@ const (
 	StatusError     Status = "error"
 )
 
+func PendingKey(id uuid.UUID) (key string) {
+	return fmt.Sprintf("/pending/%s", id)
+}
+
+func PaymentKey(id uuid.UUID) (key string) {
+	return fmt.Sprintf("/payments/%s", id)
+}
+
 type Payment struct {
 	// Identifier of the transaction
 	Id uuid.UUID
@@ -29,10 +38,12 @@ type Payment struct {
 	Priority blockchains.Priority
 	// Fee percentage to discount from the transaction
 	Fee uint64
+	// Address that should receive the funds
+	Receiver string
 	// Gateway address for receiving the transaction
 	ReceiverIndex uint64
-	// Destination address to forward funds
-	Destination string
+	// Beneficiary address to forward funds
+	Beneficiary string
 	// Error message
 	Error string
 	// Confirmation if Fee could be discounted and payed to beneficiary

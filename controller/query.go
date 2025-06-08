@@ -10,10 +10,9 @@ import (
 )
 
 // Queries a payment by its id or updates it in case it already expired
-func (c *Controller) QueryOrUpdate(id uuid.UUID) (payment Payment, err error) {
-	paymentKey := []byte(fmt.Sprintf("/payments/%s", id))
-
+func (c *Controller) Query(id uuid.UUID) (payment Payment, err error) {
 	err = c.db.View(func(txn *badger.Txn) (err error) {
+		paymentKey := []byte(PaymentKey(id))
 		entry, err := txn.Get(paymentKey)
 		if err != nil {
 			if errors.Is(err, badger.ErrKeyNotFound) {

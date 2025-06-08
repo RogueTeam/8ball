@@ -38,15 +38,15 @@ func Test_Integration(t *testing.T) {
 		// t.Logf("Create controller: %+v", ctrl)
 
 		label2 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		dst, err := wallet.NewAccount(blockchains.NewAccountRequest{Label: label2})
+		receiver, err := wallet.NewAccount(blockchains.NewAccountRequest{Label: label2})
 		assertions.Nil(err, "failed to create dst account")
 
-		payment, err := ctrl.New(dst.Address, 10_000, blockchains.PriorityHigh)
+		payment, err := ctrl.New(receiver.Address, 10_000, blockchains.PriorityHigh)
 		assertions.Nil(err, "failed to create payment")
 		// t.Logf("Create payment: %+v", payment)
 
 		// Query first
-		firstQuery, err := ctrl.QueryOrUpdate(payment.Id)
+		firstQuery, err := ctrl.Query(payment.Id)
 		assertions.Nil(err, "failed to query first payment")
 
 		assertions.Equal(payment.Id, firstQuery.Id, "Don't equal")
@@ -54,7 +54,7 @@ func Test_Integration(t *testing.T) {
 		// Pay the dst
 		_, err = wallet.Transfer(blockchains.TransferRequest{
 			SourceIndex: 0,
-			Destination: dst.Address,
+			Destination: payment.Receiver,
 			Amount:      10_000,
 			Priority:    blockchains.PriorityHigh,
 			UnlockTime:  0,
@@ -66,9 +66,18 @@ func Test_Integration(t *testing.T) {
 		assertions.Nil(err, "failed to process payments")
 
 		// Verify payment
-		secondQuery, err := ctrl.QueryOrUpdate(payment.Id)
+		secondQuery, err := ctrl.Query(payment.Id)
 		assertions.Nil(err, "failed to query payment")
 
 		assertions.Equal(controller.StatusCompleted, secondQuery.Status, "status don't match")
+
+		// Verify beneficiary received the fee
+		beneficiaryAccount, err := wallet.Account(blockchains.AccountRequest{Index: beneficiary.Index})
+		assertions.Nil(err, "failed to query beneficiary account")
+		assertions.Equal(uint64(100), beneficiaryAccount.UnlockedBalance, "invalid beneficiary balance")
+		// Verify Destination received the rest of the money
+		receiverAccount, err := wallet.Account(blockchains.AccountRequest{Index: receiver.Index})
+		assertions.Nil(err, "failed to query receiver account")
+		assertions.NotZero(receiverAccount.UnlockedBalance, "invalid receiver balance")
 	})
 }

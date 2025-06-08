@@ -1,6 +1,7 @@
 package utils
 
 type JobsPull struct {
+	size int
 	jobs chan struct{}
 }
 
@@ -13,5 +14,9 @@ func (p *JobsPull) Put() {
 }
 
 func NewJobPull(size int) (j *JobsPull) {
-	return &JobsPull{jobs: make(chan struct{}, size)}
+	j = &JobsPull{jobs: make(chan struct{}, size)}
+	for range size {
+		j.jobs <- struct{}{}
+	}
+	return j
 }

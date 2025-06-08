@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"anarchy.ttfm.onion/gateway/blockchains"
@@ -23,12 +24,12 @@ func (c *Controller) processStreamPendingPayments() (payments chan Payment, err 
 		defer close(err)
 
 		err <- c.db.View(func(txn *badger.Txn) (err error) {
-			it := txn.NewIterator(badger.IteratorOptions{
-				Prefix: pendingPrefix,
-			})
+			options := badger.DefaultIteratorOptions
+			options.Prefix = pendingPrefix
+			it := txn.NewIterator(options)
 			defer it.Close()
 
-			for ; it.ValidForPrefix(pendingPrefix); it.Next() {
+			for it.Rewind(); it.ValidForPrefix(pendingPrefix); it.Next() {
 				var payment Payment
 
 				item := it.Item()
@@ -47,6 +48,7 @@ func (c *Controller) processStreamPendingPayments() (payments chan Payment, err 
 				}
 
 				payments <- payment
+
 			}
 
 			return nil
@@ -58,7 +60,8 @@ func (c *Controller) processStreamPendingPayments() (payments chan Payment, err 
 // This is a utility function that should be called just in case something goes wrong while processing a pending payment
 func (c *Controller) deletePendingPayment(p Payment) {
 	err := c.db.Update(func(txn *badger.Txn) (err error) {
-		err = txn.Delete([]byte(fmt.Sprintf("/pending/%s", p.Id)))
+		pendingKey := PendingKey(p.Id)
+		err = txn.Delete([]byte(pendingKey))
 		if err != nil {
 			return fmt.Errorf("failed to delete pending key: %w", err)
 		}
@@ -77,7 +80,9 @@ func (c *Controller) savePaymentState(p Payment) {
 			return fmt.Errorf("failed to marshal payment: %w", err)
 		}
 
-		err = txn.Set([]byte(fmt.Sprintf("/payments/%s", p.Id)), contents)
+		paymentKey := PaymentKey(p.Id)
+
+		err = txn.Set([]byte(paymentKey), contents)
 		if err != nil {
 			return fmt.Errorf("failed to set new payment at key:m %w", err)
 		}
@@ -136,7 +141,7 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 		// Transfer remaining balance to destination
 		_, err = c.wallet.SweepAll(blockchains.SweepRequest{
 			SourceIndex: p.ReceiverIndex,
-			Destination: p.Destination,
+			Destination: p.Beneficiary,
 			Priority:    p.Priority,
 			UnlockTime:  0,
 		})
@@ -177,7 +182,6 @@ func (c *Controller) processLivePayment(p Payment) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to retrieve payment account: %w", err)
 	}
-
 	// Ignore since we don't have received the payment
 	if account.UnlockedBalance < p.Amount {
 		return nil
@@ -214,7 +218,7 @@ func (c *Controller) processLivePayment(p Payment) (err error) {
 	// Transfer remaining balance to destination
 	_, err = c.wallet.SweepAll(blockchains.SweepRequest{
 		SourceIndex: p.ReceiverIndex,
-		Destination: p.Destination,
+		Destination: p.Beneficiary,
 		Priority:    p.Priority,
 		UnlockTime:  0,
 	})
@@ -254,9 +258,12 @@ func (c *Controller) Process() (err error) {
 	defer utils.ConsumeChannel(errChan)
 
 	var jobs = utils.NewJobPull(MaxConcurrentJobs)
+	var wg sync.WaitGroup
 	for payment := range payments {
 		jobs.Get()
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			defer jobs.Put()
 
 			err := c.processPayment(now, payment)
@@ -265,6 +272,8 @@ func (c *Controller) Process() (err error) {
 			}
 		}()
 	}
+
+	wg.Wait()
 
 	err = <-errChan
 	if err != nil {

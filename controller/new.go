@@ -33,13 +33,7 @@ func (c *Controller) New(dst string, amount uint64, priority blockchains.Priorit
 			Amount:      amount,
 			Priority:    priority,
 			Fee:         c.fee,
-			Destination: dst,
-		}
-
-		// Pending entry
-		err = txn.Set([]byte(fmt.Sprintf("/pending/%s", payment.Id)), payment.Id[:])
-		if err != nil {
-			return fmt.Errorf("failed to add pending key: %w", err)
+			Beneficiary: dst,
 		}
 
 		// Prepare new entry
@@ -49,14 +43,23 @@ func (c *Controller) New(dst string, amount uint64, priority blockchains.Priorit
 		}
 
 		// Add address to output struct
+		payment.Receiver = receiver.Address
 		payment.ReceiverIndex = receiver.Index
 
 		// Save entry
-		paymentKey := fmt.Sprintf("/payments/%s", payment.Id)
 		paymentContents, err := json.Marshal(&payment)
 		if err != nil {
 			return fmt.Errorf("failed to marshal payment status: %w", err)
 		}
+
+		// Pending entry
+		pendingKey := PendingKey(payment.Id)
+		err = txn.Set([]byte(pendingKey), paymentContents)
+		if err != nil {
+			return fmt.Errorf("failed to add pending key: %w", err)
+		}
+
+		paymentKey := PaymentKey(payment.Id)
 		err = txn.Set([]byte(paymentKey), paymentContents)
 		if err != nil {
 			return fmt.Errorf("failed to set payment status: %w", err)
@@ -65,7 +68,7 @@ func (c *Controller) New(dst string, amount uint64, priority blockchains.Priorit
 		return nil
 	})
 	if err != nil {
-		return payment, fmt.Errorf("faied to add entry to the database: %w", err)
+		return payment, fmt.Errorf("failed to add entry to the database: %w", err)
 	}
 	return payment, nil
 }
