@@ -2,6 +2,7 @@ package testsuite
 
 import (
 	"testing"
+	"time"
 
 	"anarchy.ttfm.onion/gateway/blockchains"
 	"anarchy.ttfm.onion/gateway/blockchains/mock" // Import the mock wallet
@@ -73,7 +74,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 
 			currentAccount0, err := w.Account(blockchains.AccountRequest{Index: 0})
 			assertions.Nil(err, "failed to get current account 0 balance")
-			t.Logf("Account 0 balance before transfers: %d", currentAccount0.Balance)
+			t.Logf("Account 0 balance before transfers: Balance:%d ; UnlockedBalance:%d", currentAccount0.Balance, currentAccount0.UnlockedBalance)
 
 			dst, err := w.NewAccount(blockchains.NewAccountRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
 			assertions.Nil(err, "failed to create new account for internal transfer")
@@ -96,10 +97,18 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			assertions.Nil(err, "failed to get account 0 balance after internal transfer")
 			assertions.Less(account0After.Balance, currentAccount0.Balance, "Account 0 balance should be reduced by transfer amount")
 
-			dstAfter, err := w.Account(blockchains.AccountRequest{Index: dst.Index})
-			t.Log(dstAfter)
-			assertions.Nil(err, "failed to get destination account balance after internal transfer")
-			assertions.Equal(transfer.Amount, dstAfter.Balance, "Destination account balance should increase by net transfer amount")
+			var found bool
+			for range 60 {
+				dstAfter, err := w.Account(blockchains.AccountRequest{Index: dst.Index})
+				assertions.Nil(err, "failed to get destination account balance after internal transfer")
+
+				if max(dstAfter.UnlockedBalance, dstAfter.Balance) == transfer.Amount {
+					found = true
+					break
+				}
+				time.Sleep(time.Second)
+			}
+			assertions.True(found, "Destination account balance should increase by net transfer amount")
 		})
 
 		t.Run("Insufficient Funds", func(t *testing.T) {
@@ -174,12 +183,13 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 		t.Run("Successful Sweep", func(t *testing.T) {
 			assertions := assert.New(t)
 
+			sourceLabel := "sweep_source" + random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
 			// Create a new account and fund it specifically for this sweep test
-			sweepSourceAcc, err := w.NewAccount(blockchains.NewAccountRequest{Label: "sweep_source"})
+			sweepSourceAcc, err := w.NewAccount(blockchains.NewAccountRequest{Label: sourceLabel})
 			assertions.Nil(err, "failed to create sweep source account")
 
 			// Transfer to Source account
-			_, err = w.Transfer(blockchains.TransferRequest{
+			firstTransfer, err := w.Transfer(blockchains.TransferRequest{
 				SourceIndex: 0,
 				Destination: sweepSourceAcc.Address,
 				Amount:      gen.TransferAmount(),
@@ -188,7 +198,25 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			})
 			assertions.Nil(err, "failed to transfer testing amount")
 
-			sweepDstAcc, err := w.NewAccount(blockchains.NewAccountRequest{Label: "sweep_destination"})
+			t.Log("[*] Waiting for transfer be available")
+			var validSourceAccountBalance bool
+			for range 3_600 {
+				latestSourceAcc, err := w.Account(blockchains.AccountRequest{Index: sweepSourceAcc.Index})
+				assertions.Nil(err, "failed to create sweep source account")
+
+				if latestSourceAcc.UnlockedBalance == firstTransfer.Amount {
+					t.Log("[*] Balance: ", latestSourceAcc.Balance)
+					t.Log("[*] Unlocked Balance: ", latestSourceAcc.UnlockedBalance)
+					validSourceAccountBalance = true
+					break
+				}
+				time.Sleep(time.Second)
+			}
+			assertions.True(validSourceAccountBalance, "source account never received balance")
+			t.Log("[+] Transfer received")
+
+			dstLabel := "sweep_destination" + random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
+			sweepDstAcc, err := w.NewAccount(blockchains.NewAccountRequest{Label: dstLabel})
 			assertions.Nil(err, "failed to create sweep destination account")
 
 			// Sweep the entire source to dst
@@ -212,9 +240,18 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			assertions.Equal(uint64(0), sourceAccAfter.Balance, "source account balance should be zero after sweep")
 			assertions.Equal(uint64(0), sourceAccAfter.UnlockedBalance, "source account unlocked balance should be zero after sweep")
 
-			dstAccAfter, err := w.Account(blockchains.AccountRequest{Index: sweepDstAcc.Index})
-			assertions.Nil(err, "failed to get destination account balance after sweep")
-			assertions.NotZero(dstAccAfter.Balance, "destination account balance should increase by net swept amount")
+			var dstAccountBalanceValid bool
+			for range 60 {
+				dstAccAfter, err := w.Account(blockchains.AccountRequest{Index: sweepDstAcc.Index})
+				assertions.Nil(err, "failed to get destination account balance after sweep")
+
+				if dstAccAfter.Balance > 0 {
+					dstAccountBalanceValid = true
+					break
+				}
+				time.Sleep(time.Second)
+			}
+			assertions.True(dstAccountBalanceValid, "destination account balance should increase by net swept amount")
 		})
 
 		t.Run("Sweep Empty Account", func(t *testing.T) {
