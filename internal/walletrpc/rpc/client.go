@@ -1,4 +1,4 @@
-package old_rpc
+package rpc
 
 import (
 	"bytes"
@@ -6,16 +6,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"anarchy.ttfm.onion/gateway/blockchains/monero/walletrpc/old_rpc/json"
+	"anarchy.ttfm.onion/gateway/internal/walletrpc/rpc/json2"
 )
 
-type Client struct {
-	httpcl  *http.Client
-	addr    string
-	headers map[string]string
-}
-
-// New returns a new monerod-rpc client.
+// New returns a new monero-wallet-rpc client.
 func New(cfg Config) *Client {
 	cl := &Client{
 		addr:    cfg.Address,
@@ -29,14 +23,18 @@ func New(cfg Config) *Client {
 	return cl
 }
 
+type Client struct {
+	httpcl  *http.Client
+	addr    string
+	headers map[string]string
+}
+
 func (c *Client) Do(ctx context.Context, method string, in, out interface{}) error {
-	payload, err := json.EncodeClientRequest(in)
+	payload, err := json2.EncodeClientRequest(method, in)
 	if err != nil {
 		return err
 	}
-	// fmt.Printf("payload: %s\n", string(payload))
-	addr := c.addr + "/" + method
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, addr, bytes.NewBuffer(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.addr, bytes.NewBuffer(payload))
 	if err != nil {
 		return err
 	}
@@ -58,8 +56,8 @@ func (c *Client) Do(ctx context.Context, method string, in, out interface{}) err
 	// this is done to catch any monero related errors if we are not expecting any
 	// data back
 	if out == nil {
-		v := &json.EmptyResponse{}
-		return json.DecodeClientResponse(resp.Body, v)
+		v := &json2.EmptyResponse{}
+		return json2.DecodeClientResponse(resp.Body, v)
 	}
-	return json.DecodeClientResponse(resp.Body, out)
+	return json2.DecodeClientResponse(resp.Body, out)
 }

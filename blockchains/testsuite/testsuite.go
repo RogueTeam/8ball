@@ -24,7 +24,6 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 		account0, err := w.Account(blockchains.AccountRequest{Index: 0})
 		assertions.Nil(err, "failed to retrieve initial account 0 balance")
 		assertions.Equal(uint64(0), account0.Index, "Account 0 should have index 0")
-		assertions.Contains(account0.Address, "mock_address_0", "Account 0 should have a mock address")
 
 		t.Logf("Initial Account 0: %+v", account0)
 	})
@@ -98,6 +97,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			assertions.Less(account0After.Balance, currentAccount0.Balance, "Account 0 balance should be reduced by transfer amount")
 
 			dstAfter, err := w.Account(blockchains.AccountRequest{Index: dst.Index})
+			t.Log(dstAfter)
 			assertions.Nil(err, "failed to get destination account balance after internal transfer")
 			assertions.Equal(transfer.Amount, dstAfter.Balance, "Destination account balance should increase by net transfer amount")
 		})

@@ -3,7 +3,7 @@ package rpc
 import (
 	"fmt"
 
-	"anarchy.ttfm.onion/gateway/blockchains/monero/walletrpc/rpc/json2"
+	"anarchy.ttfm.onion/gateway/internal/walletrpc/rpc/json2"
 )
 
 // H is a helper map shortcut.

@@ -8,8 +8,8 @@ import (
 	"log"
 	"net/http"
 
-	"anarchy.ttfm.onion/gateway/blockchains/monero/walletrpc/old_rpc"
-	"anarchy.ttfm.onion/gateway/blockchains/monero/walletrpc/rpc"
+	"anarchy.ttfm.onion/gateway/internal/walletrpc/old_rpc"
+	"anarchy.ttfm.onion/gateway/internal/walletrpc/rpc"
 )
 
 /////////////////////////

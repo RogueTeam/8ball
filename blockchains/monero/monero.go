@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"anarchy.ttfm.onion/gateway/blockchains"
-	"anarchy.ttfm.onion/gateway/blockchains/monero/walletrpc/rpc"
+	"anarchy.ttfm.onion/gateway/internal/walletrpc/rpc"
 	"anarchy.ttfm.onion/gateway/utils"
 )
 

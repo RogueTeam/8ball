@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"anarchy.ttfm.onion/gateway/blockchains/monero"
-	"anarchy.ttfm.onion/gateway/blockchains/monero/walletrpc/rpc"
 	"anarchy.ttfm.onion/gateway/blockchains/testsuite"
+	"anarchy.ttfm.onion/gateway/internal/walletrpc/rpc"
 	"anarchy.ttfm.onion/gateway/utils"
 	"github.com/gabstv/httpdigest"
 	"github.com/stretchr/testify/assert"
@@ -55,7 +55,7 @@ type dataGenerator struct {
 }
 
 func (g *dataGenerator) TransferAmount() (amount uint64) {
-	return 1000000000
+	return 100000000
 }
 
 func Test_Monero(t *testing.T) {
