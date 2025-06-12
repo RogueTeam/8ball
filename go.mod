@@ -6,6 +6,7 @@ require golang.org/x/exp v0.0.0-20250531010427-b6e5de432a8b
 
 require (
 	github.com/dgraph-io/badger/v4 v4.7.0
+	github.com/elazarl/goproxy v1.7.2
 	github.com/gabstv/httpdigest v0.0.0-20230306144402-1057ac3638b3
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.10.0
@@ -27,6 +28,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
