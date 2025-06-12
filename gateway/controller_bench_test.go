@@ -1,4 +1,4 @@
-package controller_test
+package gateway_test
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 
 	"anarchy.ttfm/8ball/blockchains"
 	"anarchy.ttfm/8ball/blockchains/mock"
-	"anarchy.ttfm/8ball/controller"
+	"anarchy.ttfm/8ball/gateway"
 	"anarchy.ttfm/8ball/random"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
@@ -42,7 +42,7 @@ func Benchmark_Insertion(b *testing.B) {
 	defer db.Close()
 
 	// Configure the controller with the database, fee, timeout, beneficiary, and wallet
-	var config = controller.Config{
+	var config = gateway.Config{
 		DB:          db,
 		Fee:         1, // A nominal fee for each payment
 		Timeout:     5 * time.Second,
@@ -50,7 +50,7 @@ func Benchmark_Insertion(b *testing.B) {
 		Wallet:      wallet,
 	}
 	// Create the controller instance
-	ctrl := controller.New(config)
+	ctrl := gateway.New(config)
 
 	// Define the number of payments to create for this benchmark scenario
 	const numPayments = 1_000_000 // million payments

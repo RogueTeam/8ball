@@ -1,4 +1,4 @@
-package controller_test
+package gateway_test
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 
 	"anarchy.ttfm/8ball/blockchains"
 	"anarchy.ttfm/8ball/blockchains/mock"
-	"anarchy.ttfm/8ball/controller"
+	"anarchy.ttfm/8ball/gateway"
 	"anarchy.ttfm/8ball/random"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
@@ -27,14 +27,14 @@ func Test_Integration(t *testing.T) {
 			WithInMemory(true)
 		db, err := badger.Open(options)
 		assertions.Nil(err, "failed to open database")
-		var config = controller.Config{
+		var config = gateway.Config{
 			DB:          db,
 			Fee:         1,
 			Timeout:     5 * time.Second,
 			Beneficiary: beneficiary.Address,
 			Wallet:      wallet,
 		}
-		ctrl := controller.New(config)
+		ctrl := gateway.New(config)
 		// t.Logf("Create controller: %+v", ctrl)
 
 		label2 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
@@ -69,7 +69,7 @@ func Test_Integration(t *testing.T) {
 		secondQuery, err := ctrl.Query(payment.Id)
 		assertions.Nil(err, "failed to query payment")
 
-		assertions.Equal(controller.StatusCompleted, secondQuery.Status, "status don't match")
+		assertions.Equal(gateway.StatusCompleted, secondQuery.Status, "status don't match")
 
 		// Verify beneficiary received the fee
 		beneficiaryAccount, err := wallet.Account(blockchains.AccountRequest{Index: beneficiary.Index})
