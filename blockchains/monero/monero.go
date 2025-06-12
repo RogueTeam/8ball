@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"anarchy.ttfm.onion/gateway/blockchains"
-	"anarchy.ttfm.onion/gateway/internal/walletrpc/rpc"
-	"anarchy.ttfm.onion/gateway/utils"
+	"anarchy.ttfm/8ball/blockchains"
+	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
+	"anarchy.ttfm/8ball/utils"
 )
 
 type Config struct {

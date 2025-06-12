@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"anarchy.ttfm.onion/gateway/internal/walletrpc/old_rpc/json"
+	"anarchy.ttfm/8ball/internal/walletrpc/old_rpc/json"
 )
 
 type Client struct {

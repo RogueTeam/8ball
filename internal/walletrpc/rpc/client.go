@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"anarchy.ttfm.onion/gateway/internal/walletrpc/rpc/json2"
+	"anarchy.ttfm/8ball/internal/walletrpc/rpc/json2"
 )
 
 // New returns a new monero-wallet-rpc client.

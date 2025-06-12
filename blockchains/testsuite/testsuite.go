@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"anarchy.ttfm.onion/gateway/blockchains"
-	"anarchy.ttfm.onion/gateway/blockchains/mock" // Import the mock wallet
-	"anarchy.ttfm.onion/gateway/random"
+	"anarchy.ttfm/8ball/blockchains"
+	"anarchy.ttfm/8ball/blockchains/mock" // Import the mock wallet
+	"anarchy.ttfm/8ball/random"
 	"github.com/stretchr/testify/assert"
 )
 

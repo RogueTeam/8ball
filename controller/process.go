@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"anarchy.ttfm.onion/gateway/blockchains"
-	"anarchy.ttfm.onion/gateway/utils"
+	"anarchy.ttfm/8ball/blockchains"
+	"anarchy.ttfm/8ball/utils"
 	badger "github.com/dgraph-io/badger/v4"
 )
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"anarchy.ttfm.onion/gateway/blockchains"
+	"anarchy.ttfm/8ball/blockchains"
 	"github.com/google/uuid"
 )
 

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"anarchy.ttfm.onion/gateway/blockchains"
+	"anarchy.ttfm/8ball/blockchains"
 	badger "github.com/dgraph-io/badger/v4"
 )
 

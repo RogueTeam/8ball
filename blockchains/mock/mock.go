@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"anarchy.ttfm.onion/gateway/blockchains"
+	"anarchy.ttfm/8ball/blockchains"
 )
 
 var (

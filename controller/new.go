@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"anarchy.ttfm.onion/gateway/blockchains"
+	"anarchy.ttfm/8ball/blockchains"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/google/uuid"
 )

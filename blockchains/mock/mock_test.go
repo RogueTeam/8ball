@@ -3,8 +3,8 @@ package mock_test
 import (
 	"testing"
 
-	"anarchy.ttfm.onion/gateway/blockchains/mock"
-	"anarchy.ttfm.onion/gateway/blockchains/testsuite"
+	"anarchy.ttfm/8ball/blockchains/mock"
+	"anarchy.ttfm/8ball/blockchains/testsuite"
 )
 
 type genMock struct {

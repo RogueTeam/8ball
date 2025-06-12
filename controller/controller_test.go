@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"anarchy.ttfm.onion/gateway/blockchains"
-	"anarchy.ttfm.onion/gateway/blockchains/mock"
-	"anarchy.ttfm.onion/gateway/controller"
-	"anarchy.ttfm.onion/gateway/random"
+	"anarchy.ttfm/8ball/blockchains"
+	"anarchy.ttfm/8ball/blockchains/mock"
+	"anarchy.ttfm/8ball/controller"
+	"anarchy.ttfm/8ball/random"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
 )

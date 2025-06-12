@@ -1,4 +1,4 @@
-module anarchy.ttfm.onion/gateway
+module anarchy.ttfm/8ball
 
 go 1.23.2
 
