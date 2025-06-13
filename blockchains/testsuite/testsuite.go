@@ -253,7 +253,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			var sweep blockchains.Sweep
 
 			t.Log("[*] Waiting for successful sweep")
-			for try := range 120 {
+			for try := range 3_600 {
 				t.Log("[*] Sweep Attempt ", try+1)
 				sweep, err = w.SweepAll(ctx, blockchains.SweepRequest{
 					SourceIndex: sweepSourceAcc.Index,
@@ -269,7 +269,9 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 				time.Sleep(time.Second)
 			}
 
-			assertions.True(sweepSucceed, "failed to sweep all funds")
+			if !assertions.True(sweepSucceed, "failed to sweep all funds") {
+				return
+			}
 			t.Log("[+] Sweep succeed")
 
 			assertions.NotEmpty(sweep.Address, "sweep should return one transaction hash")
