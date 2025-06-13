@@ -242,7 +242,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 				time.Sleep(time.Second)
 			}
 			assertions.True(validSourceAccountBalance, "source account never received balance")
-			t.Log("[+] Transfer received")
+			t.Log("[+] Transfer received at account", sweepSourceAcc.Index)
 
 			dstLabel := "sweep_destination" + random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
 			sweepDstAcc, err := w.NewAccount(ctx, blockchains.NewAccountRequest{Label: dstLabel})
@@ -265,6 +265,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 					sweepSucceed = true
 					break
 				}
+				t.Log("\t[!]", err.Error())
 				time.Sleep(time.Second)
 			}
 
