@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -12,14 +13,20 @@ var (
 	ErrAccountNotFound     = errors.New("account not found")
 	ErrInsufficientBalance = errors.New("insufficient balance")
 	ErrInvalidAmount       = errors.New("invalid amount")
+	ErrTransactionNotFound = errors.New("transaction not found")
 )
+
+type Transaction struct {
+	Sweep    *blockchains.Sweep
+	Transfer *blockchains.Transfer
+}
 
 // Mock implements the blockchains.Wallet interface for testing purposes.
 type Mock struct {
 	mu           sync.Mutex
 	accounts     map[uint64]blockchains.Account // index -> Account
 	nextIndex    uint64
-	transactions map[string]interface{} // txHash -> transaction details (for tracking)
+	transactions map[string]Transaction // txHash -> transaction details (for tracking)
 }
 
 var _ blockchains.Wallet = (*Mock)(nil)
@@ -29,7 +36,7 @@ func New() *Mock {
 	m := &Mock{
 		accounts:     make(map[uint64]blockchains.Account),
 		nextIndex:    0, // Start nextIndex at 0
-		transactions: make(map[string]interface{}),
+		transactions: make(map[string]Transaction),
 	}
 
 	// Initialize with a zero-index account
@@ -46,7 +53,7 @@ func New() *Mock {
 }
 
 // NewAccount creates a new mock account.
-func (m *Mock) NewAccount(req blockchains.NewAccountRequest) (account blockchains.Account, err error) {
+func (m *Mock) NewAccount(ctx context.Context, req blockchains.NewAccountRequest) (account blockchains.Account, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -66,7 +73,7 @@ func (m *Mock) NewAccount(req blockchains.NewAccountRequest) (account blockchain
 }
 
 // SweepAll transfers the entire balance of an account to a destination.
-func (m *Mock) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep, err error) {
+func (m *Mock) SweepAll(ctx context.Context, req blockchains.SweepRequest) (sweep blockchains.Sweep, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -102,7 +109,7 @@ func (m *Mock) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep, 
 		Amount:      []uint64{transferredAmount}, // Simulate fee deduction
 		Fee:         []uint64{appliedFee},
 	}
-	m.transactions[mockTxHash] = sweep // Track the transaction
+	m.transactions[mockTxHash] = Transaction{Sweep: &sweep} // Track the transaction
 
 	for index, account := range m.accounts {
 		if account.Address != req.Destination {
@@ -119,7 +126,7 @@ func (m *Mock) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep, 
 const DefaultFee = 50
 
 // Transfer transfers a specified amount to a destination address.
-func (m *Mock) Transfer(req blockchains.TransferRequest) (transfer blockchains.Transfer, err error) {
+func (m *Mock) Transfer(ctx context.Context, req blockchains.TransferRequest) (transfer blockchains.Transfer, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -150,7 +157,7 @@ func (m *Mock) Transfer(req blockchains.TransferRequest) (transfer blockchains.T
 		Amount:      req.Amount, // Simulate fee deduction
 		Fee:         DefaultFee,
 	}
-	m.transactions[mockTxHash] = transfer // Track the transaction
+	m.transactions[mockTxHash] = Transaction{Transfer: &transfer} // Track the transaction
 
 	for index, account := range m.accounts {
 		if account.Address != req.Destination {
@@ -165,7 +172,7 @@ func (m *Mock) Transfer(req blockchains.TransferRequest) (transfer blockchains.T
 }
 
 // Account returns the balance of the specified account.
-func (m *Mock) Account(req blockchains.AccountRequest) (account blockchains.Account, err error) {
+func (m *Mock) Account(ctx context.Context, req blockchains.AccountRequest) (account blockchains.Account, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -177,7 +184,31 @@ func (m *Mock) Account(req blockchains.AccountRequest) (account blockchains.Acco
 }
 
 // ValidateAddress always returns true for any address in the mock.
-func (m *Mock) ValidateAddress(req blockchains.ValidateAddressRequest) (valid blockchains.ValidateAddress, err error) {
+func (m *Mock) ValidateAddress(ctx context.Context, req blockchains.ValidateAddressRequest) (valid blockchains.ValidateAddress, err error) {
 	// For testing, all addresses are valid.
 	return blockchains.ValidateAddress{Valid: true}, nil
+}
+
+func (m *Mock) Transaction(ctx context.Context, req blockchains.TransactionRequest) (tx blockchains.Transaction, err error) {
+	transaction, found := m.transactions[req.TransactionId]
+	if !found {
+		return tx, ErrTransactionNotFound
+	}
+
+	tx = blockchains.Transaction{
+		Address: req.TransactionId,
+	}
+
+	switch {
+	case transaction.Sweep != nil:
+		tx.Amount = transaction.Sweep.Amount[0]
+		tx.Destination = transaction.Sweep.Destination
+		tx.Status = blockchains.TransactionStatusCompleted
+	case transaction.Transfer != nil:
+		tx.Amount = transaction.Transfer.Amount
+		tx.Destination = transaction.Transfer.Destination
+		tx.Status = blockchains.TransactionStatusCompleted
+	}
+
+	return tx, nil
 }

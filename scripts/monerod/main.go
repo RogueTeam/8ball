@@ -26,8 +26,8 @@ func main() {
 	// Define the base arguments for the monerod command.
 	args := []string{
 		"--prune-blockchain",
-		"--proxy", "127.0.0.1:9050",
-		"--tx-proxy", "tor,127.0.0.1:9050,10",
+		// "--proxy", "127.0.0.1:9050",
+		// "--tx-proxy", "tor,127.0.0.1:9050,10",
 		"--p2p-bind-ip", "127.0.0.1",
 		"--no-igd",
 		"--non-interactive",

@@ -8,6 +8,7 @@ import (
 	"anarchy.ttfm/8ball/blockchains/mock"
 	"anarchy.ttfm/8ball/gateway"
 	"anarchy.ttfm/8ball/random"
+	"anarchy.ttfm/8ball/utils"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,6 +19,10 @@ func Benchmark_Insertion(b *testing.B) {
 	b.StopTimer()
 
 	assertions := assert.New(b)
+
+	ctx, cancel := utils.NewContext()
+	defer cancel()
+
 	// --- Setup Phase (Executed once before benchmarking) ---
 
 	// Initialize the mock wallet
@@ -27,7 +32,7 @@ func Benchmark_Insertion(b *testing.B) {
 	// The label is randomized to ensure uniqueness if multiple benchmarks run in parallel,
 	// though for a single benchmark run, a fixed label would also suffice.
 	beneficiaryLabel := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-	beneficiary, err := wallet.NewAccount(blockchains.NewAccountRequest{Label: beneficiaryLabel})
+	beneficiary, err := wallet.NewAccount(ctx, blockchains.NewAccountRequest{Label: beneficiaryLabel})
 	assertions.Nil(err, "failed to create beneficiary account")
 
 	// Configure and open an in-memory BadgerDB instance
@@ -56,7 +61,7 @@ func Benchmark_Insertion(b *testing.B) {
 	const numPayments = 1_000_000 // million payments
 
 	receiverLabel := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-	receiver, err := wallet.NewAccount(blockchains.NewAccountRequest{Label: receiverLabel})
+	receiver, err := wallet.NewAccount(ctx, blockchains.NewAccountRequest{Label: receiverLabel})
 	assertions.Nil(err, "failed to create receiver account")
 
 	b.ResetTimer()

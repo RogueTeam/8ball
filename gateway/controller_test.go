@@ -8,6 +8,7 @@ import (
 	"anarchy.ttfm/8ball/blockchains/mock"
 	"anarchy.ttfm/8ball/gateway"
 	"anarchy.ttfm/8ball/random"
+	"anarchy.ttfm/8ball/utils"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,10 +17,13 @@ func Test_Integration(t *testing.T) {
 	t.Run("Succeed", func(t *testing.T) {
 		assertions := assert.New(t)
 
+		ctx, cancel := utils.NewContext()
+		defer cancel()
+
 		wallet := mock.New()
 
 		label1 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		beneficiary, err := wallet.NewAccount(blockchains.NewAccountRequest{Label: label1})
+		beneficiary, err := wallet.NewAccount(ctx, blockchains.NewAccountRequest{Label: label1})
 		assertions.Nil(err, "failed to create beneficiary account")
 
 		options := badger.
@@ -38,7 +42,7 @@ func Test_Integration(t *testing.T) {
 		// t.Logf("Create controller: %+v", ctrl)
 
 		label2 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		receiver, err := wallet.NewAccount(blockchains.NewAccountRequest{Label: label2})
+		receiver, err := wallet.NewAccount(ctx, blockchains.NewAccountRequest{Label: label2})
 		assertions.Nil(err, "failed to create dst account")
 
 		payment, err := ctrl.New(receiver.Address, 10_000, blockchains.PriorityHigh)
@@ -52,7 +56,7 @@ func Test_Integration(t *testing.T) {
 		assertions.Equal(payment.Id, firstQuery.Id, "Don't equal")
 
 		// Pay the dst
-		_, err = wallet.Transfer(blockchains.TransferRequest{
+		_, err = wallet.Transfer(ctx, blockchains.TransferRequest{
 			SourceIndex: 0,
 			Destination: payment.Receiver,
 			Amount:      10_000,
@@ -72,11 +76,11 @@ func Test_Integration(t *testing.T) {
 		assertions.Equal(gateway.StatusCompleted, secondQuery.Status, "status don't match")
 
 		// Verify beneficiary received the fee
-		beneficiaryAccount, err := wallet.Account(blockchains.AccountRequest{Index: beneficiary.Index})
+		beneficiaryAccount, err := wallet.Account(ctx, blockchains.AccountRequest{Index: beneficiary.Index})
 		assertions.Nil(err, "failed to query beneficiary account")
 		assertions.Equal(uint64(100), beneficiaryAccount.UnlockedBalance, "invalid beneficiary balance")
 		// Verify Destination received the rest of the money
-		receiverAccount, err := wallet.Account(blockchains.AccountRequest{Index: receiver.Index})
+		receiverAccount, err := wallet.Account(ctx, blockchains.AccountRequest{Index: receiver.Index})
 		assertions.Nil(err, "failed to query receiver account")
 		assertions.NotZero(receiverAccount.UnlockedBalance, "invalid receiver balance")
 	})

@@ -109,7 +109,10 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 		c.savePaymentState(p)
 	}()
 
-	account, err := c.wallet.Account(blockchains.AccountRequest{Index: p.ReceiverIndex})
+	ctx, cancel := utils.NewContext()
+	defer cancel()
+
+	account, err := c.wallet.Account(ctx, blockchains.AccountRequest{Index: p.ReceiverIndex})
 	if err != nil {
 		return fmt.Errorf("failed to retrieve payment account: %w", err)
 	}
@@ -120,7 +123,7 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 
 		fee := calculateFee(account.UnlockedBalance, p.Fee)
 		// Discount fee and transfer it to the beneficiary
-		_, err := c.wallet.Transfer(blockchains.TransferRequest{
+		_, err := c.wallet.Transfer(ctx, blockchains.TransferRequest{
 			SourceIndex: p.ReceiverIndex,
 			Destination: c.beneficiary,
 			Amount:      fee,
@@ -135,7 +138,7 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 		p.FeePayed = true
 
 		// Transfer remaining balance to destination
-		_, err = c.wallet.SweepAll(blockchains.SweepRequest{
+		_, err = c.wallet.SweepAll(ctx, blockchains.SweepRequest{
 			SourceIndex: p.ReceiverIndex,
 			Destination: p.Beneficiary,
 			Priority:    p.Priority,
@@ -150,7 +153,7 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 	} else if account.UnlockedBalance > 0 {
 		p.Status = StatusExpired
 		// Payment expired, we can make a profit from the unlocked balance
-		_, err = c.wallet.SweepAll(blockchains.SweepRequest{
+		_, err = c.wallet.SweepAll(ctx, blockchains.SweepRequest{
 			SourceIndex: p.ReceiverIndex,
 			Destination: c.beneficiary,
 			Priority:    p.Priority,
@@ -174,7 +177,10 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 // - Delete pending entry
 // - Try to transfer the received amount to beneficiary
 func (c *Controller) processLivePayment(p Payment) (err error) {
-	account, err := c.wallet.Account(blockchains.AccountRequest{Index: p.ReceiverIndex})
+	ctx, cancel := utils.NewContext()
+	defer cancel()
+
+	account, err := c.wallet.Account(ctx, blockchains.AccountRequest{Index: p.ReceiverIndex})
 	if err != nil {
 		return fmt.Errorf("failed to retrieve payment account: %w", err)
 	}
@@ -197,7 +203,7 @@ func (c *Controller) processLivePayment(p Payment) (err error) {
 
 	fee := calculateFee(account.UnlockedBalance, p.Fee)
 	// Discount fee and transfer it to the beneficiary
-	_, err = c.wallet.Transfer(blockchains.TransferRequest{
+	_, err = c.wallet.Transfer(ctx, blockchains.TransferRequest{
 		SourceIndex: p.ReceiverIndex,
 		Destination: c.beneficiary,
 		Amount:      fee,
@@ -212,7 +218,7 @@ func (c *Controller) processLivePayment(p Payment) (err error) {
 	p.FeePayed = true
 
 	// Transfer remaining balance to destination
-	_, err = c.wallet.SweepAll(blockchains.SweepRequest{
+	_, err = c.wallet.SweepAll(ctx, blockchains.SweepRequest{
 		SourceIndex: p.ReceiverIndex,
 		Destination: p.Beneficiary,
 		Priority:    p.Priority,

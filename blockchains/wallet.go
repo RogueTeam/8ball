@@ -1,6 +1,9 @@
 package blockchains
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 var ErrInvalidPriority = errors.New("invalid priority")
 
@@ -83,21 +86,41 @@ type (
 	ValidateAddress struct {
 		Valid bool
 	}
+	TransactionRequest struct {
+		TransactionId string
+	}
+	Transaction struct {
+		Address     string
+		Amount      uint64
+		Destination string
+		Status      TransactionStatus
+	}
+)
+
+type TransactionStatus string
+
+const (
+	TransactionStatusPending   TransactionStatus = "pending"
+	TransactionStatusCompleted TransactionStatus = "completed"
+	TransactionStatusFailed    TransactionStatus = "failed"
 )
 
 type Wallet interface {
 	// Create a new address associate with the account
-	NewAccount(req NewAccountRequest) (account Account, err error)
+	NewAccount(ctx context.Context, req NewAccountRequest) (account Account, err error)
 
 	// Transfers the entire balance of an address to destination
-	SweepAll(req SweepRequest) (sweep Sweep, err error)
+	SweepAll(ctx context.Context, req SweepRequest) (sweep Sweep, err error)
 
 	// Transfers to a destination address
-	Transfer(req TransferRequest) (transfer Transfer, err error)
+	Transfer(ctx context.Context, req TransferRequest) (transfer Transfer, err error)
 
 	// Returns the balance of the opened wallet
-	Account(req AccountRequest) (account Account, err error)
+	Account(ctx context.Context, req AccountRequest) (account Account, err error)
 
 	// Validate if a monero is valid or not
-	ValidateAddress(req ValidateAddressRequest) (valid ValidateAddress, err error)
+	ValidateAddress(ctx context.Context, req ValidateAddressRequest) (valid ValidateAddress, err error)
+
+	// Query the status of a transaction
+	Transaction(ctx context.Context, req TransactionRequest) (tx Transaction, err error)
 }

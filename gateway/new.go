@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"anarchy.ttfm/8ball/blockchains"
+	"anarchy.ttfm/8ball/utils"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/google/uuid"
 )
@@ -15,7 +16,10 @@ import (
 // id is the id to be used for future checks
 // fee is the percentage to be discounted from the entire transaction
 func (c *Controller) New(dst string, amount uint64, priority blockchains.Priority) (payment Payment, err error) {
-	valid, err := c.wallet.ValidateAddress(blockchains.ValidateAddressRequest{Address: dst})
+	ctx, cancel := utils.NewContext()
+	defer cancel()
+
+	valid, err := c.wallet.ValidateAddress(ctx, blockchains.ValidateAddressRequest{Address: dst})
 	if err != nil {
 		return payment, fmt.Errorf("failed to validate dst address: %w", err)
 	}
@@ -26,7 +30,7 @@ func (c *Controller) New(dst string, amount uint64, priority blockchains.Priorit
 
 	err = c.db.Update(func(txn *badger.Txn) (err error) {
 		// Prepare new entry
-		receiver, err := c.wallet.NewAccount(blockchains.NewAccountRequest{Label: payment.Id.String()})
+		receiver, err := c.wallet.NewAccount(ctx, blockchains.NewAccountRequest{Label: payment.Id.String()})
 		if err != nil {
 			return fmt.Errorf("failed to prepare receiver address: %w", err)
 		}

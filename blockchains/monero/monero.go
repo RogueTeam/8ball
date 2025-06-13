@@ -42,10 +42,7 @@ func (w *Wallet) validateAddress(ctx context.Context, address string) (err error
 	return nil
 }
 
-func (w *Wallet) NewAccount(req blockchains.NewAccountRequest) (account blockchains.Account, err error) {
-	ctx, cancel := utils.NewContext()
-	defer cancel()
-
+func (w *Wallet) NewAccount(ctx context.Context, req blockchains.NewAccountRequest) (account blockchains.Account, err error) {
 	var createAccount = rpc.CreateAccountRequest{
 		Label: req.Label,
 	}
@@ -83,10 +80,7 @@ func convertPriority(p blockchains.Priority) (priority rpc.Priority, err error) 
 	}
 }
 
-func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep, err error) {
-	ctx, cancel := utils.NewContext()
-	defer cancel()
-
+func (w *Wallet) SweepAll(ctx context.Context, req blockchains.SweepRequest) (sweep blockchains.Sweep, err error) {
 	err = w.validateAddress(ctx, req.Destination)
 	if err != nil {
 		return sweep, fmt.Errorf("failed to validate destination address: %w", err)
@@ -130,10 +124,7 @@ func (w *Wallet) SweepAll(req blockchains.SweepRequest) (sweep blockchains.Sweep
 	return
 }
 
-func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains.Transfer, err error) {
-	ctx, cancel := utils.NewContext()
-	defer cancel()
-
+func (w *Wallet) Transfer(ctx context.Context, req blockchains.TransferRequest) (transfer blockchains.Transfer, err error) {
 	err = w.validateAddress(ctx, req.Destination)
 	if err != nil {
 		return transfer, fmt.Errorf("failed to validate destination address: %w: %s", err, req.Destination)
@@ -179,10 +170,7 @@ func (w *Wallet) Transfer(req blockchains.TransferRequest) (transfer blockchains
 	return
 }
 
-func (w *Wallet) Account(req blockchains.AccountRequest) (account blockchains.Account, err error) {
-	ctx, cancel := utils.NewContext()
-	defer cancel()
-
+func (w *Wallet) Account(ctx context.Context, req blockchains.AccountRequest) (account blockchains.Account, err error) {
 	addr, err := w.client.GetAddress(ctx, &rpc.GetAddressRequest{AccountIndex: req.Index})
 	if err != nil {
 		return account, fmt.Errorf("failed to get account address: %w", err)
@@ -204,10 +192,7 @@ func (w *Wallet) Account(req blockchains.AccountRequest) (account blockchains.Ac
 	return
 }
 
-func (w *Wallet) ValidateAddress(req blockchains.ValidateAddressRequest) (valid blockchains.ValidateAddress, err error) {
-	ctx, cancel := utils.NewContext()
-	defer cancel()
-
+func (w *Wallet) ValidateAddress(ctx context.Context, req blockchains.ValidateAddressRequest) (valid blockchains.ValidateAddress, err error) {
 	err = w.validateAddress(ctx, req.Address)
 	if err != nil {
 		return valid, fmt.Errorf("failed to validate address: %w", err)
@@ -217,6 +202,40 @@ func (w *Wallet) ValidateAddress(req blockchains.ValidateAddressRequest) (valid 
 		Valid: true,
 	}
 	return
+}
+
+func (w *Wallet) Transaction(ctx context.Context, req blockchains.TransactionRequest) (tx blockchains.Transaction, err error) {
+	var getTransfer = rpc.GetTransferByTxidRequest{
+		Txid: req.TransactionId,
+	}
+
+	transaction, err := w.client.GetTransferByTxid(ctx, &getTransfer)
+	if err != nil {
+		return tx, fmt.Errorf("failed to retrieve transfer by id: %w", err)
+	}
+
+	transfer := transaction.Transfer
+	tx = blockchains.Transaction{
+		Address: transfer.Address,
+		Amount:  transfer.Amount,
+	}
+
+	switch transfer.Type {
+	case "pending", "pool":
+		tx.Status = blockchains.TransactionStatusPending
+	case "out":
+		tx.Status = blockchains.TransactionStatusCompleted
+	case "failed":
+		tx.Status = blockchains.TransactionStatusFailed
+	default:
+		return tx, errors.New("unsupported tx type")
+	}
+
+	if len(transfer.Destinations) > 0 {
+		tx.Destination = transfer.Destinations[0].Address
+	}
+
+	return tx, nil
 }
 
 func New(config Config) (w Wallet) {
