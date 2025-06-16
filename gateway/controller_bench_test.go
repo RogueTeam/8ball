@@ -32,7 +32,7 @@ func Benchmark_Insertion(b *testing.B) {
 	// The label is randomized to ensure uniqueness if multiple benchmarks run in parallel,
 	// though for a single benchmark run, a fixed label would also suffice.
 	beneficiaryLabel := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-	beneficiary, err := wallet.NewAccount(ctx, blockchains.NewAccountRequest{Label: beneficiaryLabel})
+	beneficiary, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: beneficiaryLabel})
 	assertions.Nil(err, "failed to create beneficiary account")
 
 	// Configure and open an in-memory BadgerDB instance
@@ -61,7 +61,7 @@ func Benchmark_Insertion(b *testing.B) {
 	const numPayments = 1_000_000 // million payments
 
 	receiverLabel := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-	receiver, err := wallet.NewAccount(ctx, blockchains.NewAccountRequest{Label: receiverLabel})
+	receiver, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: receiverLabel})
 	assertions.Nil(err, "failed to create receiver account")
 
 	b.ResetTimer()

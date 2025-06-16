@@ -26,6 +26,15 @@ var (
 
 var _ blockchains.Wallet = (*Wallet)(nil)
 
+func (w *Wallet) Sync(ctx context.Context) (err error) {
+	_, err = w.client.Refresh(ctx, &rpc.RefreshRequest{StartHeight: 0})
+	if err != nil {
+		return fmt.Errorf("failed to refresh wallet at height 0: %w", err)
+	}
+
+	return
+}
+
 func (w *Wallet) validateAddress(ctx context.Context, address string) (err error) {
 	var validate = rpc.ValidateAddressRequest{
 		Address: address,
@@ -42,11 +51,12 @@ func (w *Wallet) validateAddress(ctx context.Context, address string) (err error
 	return nil
 }
 
-func (w *Wallet) NewAccount(ctx context.Context, req blockchains.NewAccountRequest) (account blockchains.Account, err error) {
-	var createAccount = rpc.CreateAccountRequest{
-		Label: req.Label,
+func (w *Wallet) NewAddress(ctx context.Context, req blockchains.NewAddressRequest) (account blockchains.Address, err error) {
+	var createAccount = rpc.CreateAddressRequest{
+		AccountIndex: 0,
+		Label:        req.Label,
 	}
-	a, err := w.client.CreateAccount(ctx, &createAccount)
+	a, err := w.client.CreateAddress(ctx, &createAccount)
 	if err != nil {
 		return account, fmt.Errorf("failed to create account: %w", err)
 	}
@@ -56,9 +66,9 @@ func (w *Wallet) NewAccount(ctx context.Context, req blockchains.NewAccountReque
 		return account, fmt.Errorf("failed to save changes: %w", err)
 	}
 
-	account = blockchains.Account{
+	account = blockchains.Address{
 		Address:         a.Address,
-		Index:           a.AccountIndex,
+		Index:           a.AddressIndex,
 		Balance:         0,
 		UnlockedBalance: 0,
 	}
@@ -92,15 +102,15 @@ func (w *Wallet) SweepAll(ctx context.Context, req blockchains.SweepRequest) (sw
 	}
 
 	var trans = rpc.SweepAllRequest{
-		Address:      req.Destination,
-		AccountIndex: req.SourceIndex,
-		// SubaddrIndices: []uint64{},
-		Priority:      priority,
-		RingSize:      16, // Fixed by the network. May require update in the future
-		UnlockTime:    req.UnlockTime,
-		GetTxKeys:     true,
-		GetTxHex:      true,
-		GetTxMetadata: true,
+		Address:        req.Destination,
+		AccountIndex:   0,
+		SubaddrIndices: []uint64{req.SourceIndex},
+		Priority:       priority,
+		RingSize:       16, // Fixed by the network. May require update in the future
+		UnlockTime:     req.UnlockTime,
+		GetTxKeys:      true,
+		GetTxHex:       true,
+		GetTxMetadata:  true,
 	}
 
 	res, err := w.client.SweepAll(ctx, &trans)
@@ -139,14 +149,14 @@ func (w *Wallet) Transfer(ctx context.Context, req blockchains.TransferRequest) 
 		Destinations: []rpc.Destination{
 			{Amount: req.Amount, Address: req.Destination},
 		},
-		AccountIndex: req.SourceIndex,
-		// SubaddrIndices: []uint64{},
-		Priority:      priority,
-		RingSize:      16, // Fixed by the network. May require update in the future
-		UnlockTime:    req.UnlockTime,
-		GetTxKey:      true,
-		GetTxHex:      true,
-		GetTxMetadata: true,
+		AccountIndex:   0,
+		SubaddrIndices: []uint64{req.SourceIndex},
+		Priority:       priority,
+		RingSize:       16, // Fixed by the network. May require update in the future
+		UnlockTime:     req.UnlockTime,
+		GetTxKey:       true,
+		GetTxHex:       true,
+		GetTxMetadata:  true,
 	}
 
 	res, err := w.client.Transfer(ctx, &trans)
@@ -170,24 +180,20 @@ func (w *Wallet) Transfer(ctx context.Context, req blockchains.TransferRequest) 
 	return
 }
 
-func (w *Wallet) Account(ctx context.Context, req blockchains.AccountRequest) (account blockchains.Account, err error) {
-	addr, err := w.client.GetAddress(ctx, &rpc.GetAddressRequest{AccountIndex: req.Index})
-	if err != nil {
-		return account, fmt.Errorf("failed to get account address: %w", err)
-	}
-
+func (w *Wallet) Address(ctx context.Context, req blockchains.AddressRequest) (account blockchains.Address, err error) {
 	accountBalance, err := w.client.GetBalance(ctx, &rpc.GetBalanceRequest{
-		AccountIndex: req.Index,
+		AccountIndex:   0,
+		AddressIndices: []uint64{req.Index},
 	})
 	if err != nil {
 		return account, fmt.Errorf("failed to get account balance: %w", err)
 	}
 
-	account = blockchains.Account{
-		Address:         addr.Address,
+	account = blockchains.Address{
+		Address:         accountBalance.PerSubaddress[0].Address,
 		Index:           req.Index,
-		Balance:         accountBalance.Balance,
-		UnlockedBalance: accountBalance.UnlockedBalance,
+		Balance:         accountBalance.PerSubaddress[0].Balance,
+		UnlockedBalance: accountBalance.PerSubaddress[0].UnlockedBalance,
 	}
 	return
 }
@@ -206,7 +212,8 @@ func (w *Wallet) ValidateAddress(ctx context.Context, req blockchains.ValidateAd
 
 func (w *Wallet) Transaction(ctx context.Context, req blockchains.TransactionRequest) (tx blockchains.Transaction, err error) {
 	var getTransfer = rpc.GetTransferByTxidRequest{
-		Txid: req.TransactionId,
+		AccountIndex: 0,
+		Txid:         req.TransactionId,
 	}
 
 	transaction, err := w.client.GetTransferByTxid(ctx, &getTransfer)

@@ -23,7 +23,7 @@ func Test_Integration(t *testing.T) {
 		wallet := mock.New()
 
 		label1 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		beneficiary, err := wallet.NewAccount(ctx, blockchains.NewAccountRequest{Label: label1})
+		beneficiary, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: label1})
 		assertions.Nil(err, "failed to create beneficiary account")
 
 		options := badger.
@@ -42,7 +42,7 @@ func Test_Integration(t *testing.T) {
 		// t.Logf("Create controller: %+v", ctrl)
 
 		label2 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		receiver, err := wallet.NewAccount(ctx, blockchains.NewAccountRequest{Label: label2})
+		receiver, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: label2})
 		assertions.Nil(err, "failed to create dst account")
 
 		payment, err := ctrl.New(receiver.Address, 10_000, blockchains.PriorityHigh)
@@ -76,11 +76,11 @@ func Test_Integration(t *testing.T) {
 		assertions.Equal(gateway.StatusCompleted, secondQuery.Status, "status don't match")
 
 		// Verify beneficiary received the fee
-		beneficiaryAccount, err := wallet.Account(ctx, blockchains.AccountRequest{Index: beneficiary.Index})
+		beneficiaryAccount, err := wallet.Address(ctx, blockchains.AddressRequest{Index: beneficiary.Index})
 		assertions.Nil(err, "failed to query beneficiary account")
 		assertions.Equal(uint64(100), beneficiaryAccount.UnlockedBalance, "invalid beneficiary balance")
 		// Verify Destination received the rest of the money
-		receiverAccount, err := wallet.Account(ctx, blockchains.AccountRequest{Index: receiver.Index})
+		receiverAccount, err := wallet.Address(ctx, blockchains.AddressRequest{Index: receiver.Index})
 		assertions.Nil(err, "failed to query receiver account")
 		assertions.NotZero(receiverAccount.UnlockedBalance, "invalid receiver balance")
 	})

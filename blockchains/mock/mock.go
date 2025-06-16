@@ -24,7 +24,7 @@ type Transaction struct {
 // Mock implements the blockchains.Wallet interface for testing purposes.
 type Mock struct {
 	mu           sync.Mutex
-	accounts     map[uint64]blockchains.Account // index -> Account
+	addresses    map[uint64]blockchains.Address // index -> Account
 	nextIndex    uint64
 	transactions map[string]Transaction // txHash -> transaction details (for tracking)
 }
@@ -34,26 +34,28 @@ var _ blockchains.Wallet = (*Mock)(nil)
 // New creates a new Mock wallet.
 func New() *Mock {
 	m := &Mock{
-		accounts:     make(map[uint64]blockchains.Account),
+		addresses:    make(map[uint64]blockchains.Address),
 		nextIndex:    0, // Start nextIndex at 0
 		transactions: make(map[string]Transaction),
 	}
 
 	// Initialize with a zero-index account
-	zeroAccount := blockchains.Account{
+	zeroAccount := blockchains.Address{
 		Address:         "mock_address_0", // A default address for the initial account
 		Index:           0,
 		Balance:         1_000_000_000,
 		UnlockedBalance: 1_000_000_000,
 	}
-	m.accounts[0] = zeroAccount
+	m.addresses[0] = zeroAccount
 	m.nextIndex++ // Increment nextIndex after setting up the initial account
 
 	return m
 }
 
-// NewAccount creates a new mock account.
-func (m *Mock) NewAccount(ctx context.Context, req blockchains.NewAccountRequest) (account blockchains.Account, err error) {
+func (m *Mock) Sync(ctx context.Context) (err error) { return nil }
+
+// NewAddress creates a new mock account.
+func (m *Mock) NewAddress(ctx context.Context, req blockchains.NewAddressRequest) (address blockchains.Address, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -61,15 +63,15 @@ func (m *Mock) NewAccount(ctx context.Context, req blockchains.NewAccountRequest
 	// but we can simulate creating a new address.
 	newAddress := fmt.Sprintf("mock_address_%d", m.nextIndex)
 
-	account = blockchains.Account{
+	address = blockchains.Address{
 		Address:         newAddress,
 		Index:           m.nextIndex,
 		Balance:         0,
 		UnlockedBalance: 0,
 	}
-	m.accounts[m.nextIndex] = account
+	m.addresses[m.nextIndex] = address
 	m.nextIndex++
-	return account, nil
+	return address, nil
 }
 
 // SweepAll transfers the entire balance of an account to a destination.
@@ -77,7 +79,7 @@ func (m *Mock) SweepAll(ctx context.Context, req blockchains.SweepRequest) (swee
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	sourceAccount, ok := m.accounts[req.SourceIndex]
+	sourceAccount, ok := m.addresses[req.SourceIndex]
 	if !ok {
 		return sweep, ErrAccountNotFound
 	}
@@ -98,7 +100,7 @@ func (m *Mock) SweepAll(ctx context.Context, req blockchains.SweepRequest) (swee
 
 	sourceAccount.Balance = 0
 	sourceAccount.UnlockedBalance = 0
-	m.accounts[req.SourceIndex] = sourceAccount
+	m.addresses[req.SourceIndex] = sourceAccount
 
 	mockTxHash := fmt.Sprintf("mock_sweep_tx_%d_%s", req.SourceIndex, req.Destination)
 
@@ -111,13 +113,13 @@ func (m *Mock) SweepAll(ctx context.Context, req blockchains.SweepRequest) (swee
 	}
 	m.transactions[mockTxHash] = Transaction{Sweep: &sweep} // Track the transaction
 
-	for index, account := range m.accounts {
+	for index, account := range m.addresses {
 		if account.Address != req.Destination {
 			continue
 		}
 		account.Balance += transferredAmount
 		account.UnlockedBalance += transferredAmount
-		m.accounts[index] = account
+		m.addresses[index] = account
 		break
 	}
 	return sweep, nil
@@ -134,7 +136,7 @@ func (m *Mock) Transfer(ctx context.Context, req blockchains.TransferRequest) (t
 		return transfer, ErrInvalidAmount
 	}
 
-	sourceAccount, ok := m.accounts[req.SourceIndex]
+	sourceAccount, ok := m.addresses[req.SourceIndex]
 	if !ok {
 		return transfer, ErrAccountNotFound
 	}
@@ -146,7 +148,7 @@ func (m *Mock) Transfer(ctx context.Context, req blockchains.TransferRequest) (t
 	// For a mock, we just deduct the balance and generate a mock transaction hash.
 	sourceAccount.Balance -= req.Amount + DefaultFee
 	sourceAccount.UnlockedBalance -= req.Amount + DefaultFee // Assuming transferred amount was unlocked
-	m.accounts[req.SourceIndex] = sourceAccount
+	m.addresses[req.SourceIndex] = sourceAccount
 
 	mockTxHash := fmt.Sprintf("mock_transfer_tx_%d_%s_%d", req.SourceIndex, req.Destination, req.Amount)
 
@@ -159,26 +161,26 @@ func (m *Mock) Transfer(ctx context.Context, req blockchains.TransferRequest) (t
 	}
 	m.transactions[mockTxHash] = Transaction{Transfer: &transfer} // Track the transaction
 
-	for index, account := range m.accounts {
+	for index, account := range m.addresses {
 		if account.Address != req.Destination {
 			continue
 		}
 		account.Balance += req.Amount
 		account.UnlockedBalance += req.Amount
-		m.accounts[index] = account
+		m.addresses[index] = account
 		break
 	}
 	return transfer, nil
 }
 
-// Account returns the balance of the specified account.
-func (m *Mock) Account(ctx context.Context, req blockchains.AccountRequest) (account blockchains.Account, err error) {
+// Address returns the balance of the specified account.
+func (m *Mock) Address(ctx context.Context, req blockchains.AddressRequest) (address blockchains.Address, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	acc, ok := m.accounts[req.Index]
+	acc, ok := m.addresses[req.Index]
 	if !ok {
-		return account, ErrAccountNotFound
+		return address, ErrAccountNotFound
 	}
 	return acc, nil
 }

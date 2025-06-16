@@ -16,15 +16,15 @@ const (
 type Priority string
 
 type (
-	AccountRequest struct {
+	AddressRequest struct {
 		// Index of the account
 		Index uint64
 	}
-	NewAccountRequest struct {
+	NewAddressRequest struct {
 		// Label for the new account
 		Label string
 	}
-	Account struct {
+	Address struct {
 		// Address of the account
 		Address string
 		// Index of the account
@@ -106,8 +106,11 @@ const (
 )
 
 type Wallet interface {
+	// Sync the wallet
+	Sync(ctx context.Context) (err error)
+
 	// Create a new address associate with the account
-	NewAccount(ctx context.Context, req NewAccountRequest) (account Account, err error)
+	NewAddress(ctx context.Context, req NewAddressRequest) (address Address, err error)
 
 	// Transfers the entire balance of an address to destination
 	SweepAll(ctx context.Context, req SweepRequest) (sweep Sweep, err error)
@@ -116,7 +119,7 @@ type Wallet interface {
 	Transfer(ctx context.Context, req TransferRequest) (transfer Transfer, err error)
 
 	// Returns the balance of the opened wallet
-	Account(ctx context.Context, req AccountRequest) (account Account, err error)
+	Address(ctx context.Context, req AddressRequest) (address Address, err error)
 
 	// Validate if a monero is valid or not
 	ValidateAddress(ctx context.Context, req ValidateAddressRequest) (valid ValidateAddress, err error)

@@ -30,7 +30,7 @@ func (c *Controller) New(dst string, amount uint64, priority blockchains.Priorit
 
 	err = c.db.Update(func(txn *badger.Txn) (err error) {
 		// Prepare new entry
-		receiver, err := c.wallet.NewAccount(ctx, blockchains.NewAccountRequest{Label: payment.Id.String()})
+		receiver, err := c.wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: payment.Id.String()})
 		if err != nil {
 			return fmt.Errorf("failed to prepare receiver address: %w", err)
 		}

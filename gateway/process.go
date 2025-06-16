@@ -112,7 +112,7 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	account, err := c.wallet.Account(ctx, blockchains.AccountRequest{Index: p.ReceiverIndex})
+	account, err := c.wallet.Address(ctx, blockchains.AddressRequest{Index: p.ReceiverIndex})
 	if err != nil {
 		return fmt.Errorf("failed to retrieve payment account: %w", err)
 	}
@@ -180,7 +180,7 @@ func (c *Controller) processLivePayment(p Payment) (err error) {
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	account, err := c.wallet.Account(ctx, blockchains.AccountRequest{Index: p.ReceiverIndex})
+	account, err := c.wallet.Address(ctx, blockchains.AddressRequest{Index: p.ReceiverIndex})
 	if err != nil {
 		return fmt.Errorf("failed to retrieve payment account: %w", err)
 	}

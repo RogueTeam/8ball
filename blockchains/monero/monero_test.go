@@ -17,7 +17,6 @@ import (
 var (
 	walletFilename string
 	walletPassword string
-	accountName    string
 )
 
 func init() {
@@ -28,10 +27,6 @@ func init() {
 	walletPassword = os.Getenv("MONERO_WALLET_PASSWORD")
 	if walletPassword == "" {
 		log.Fatal("MONERO_WALLET_PASSWORD not set")
-	}
-	accountName = os.Getenv("MONERO_ACCOUNT_NAME")
-	if accountName == "" {
-		log.Fatal("MONERO_ACCOUNT_NAME not set")
 	}
 }
 
