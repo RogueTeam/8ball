@@ -17,17 +17,17 @@ type Priority string
 
 type (
 	AddressRequest struct {
-		// Index of the account
+		// Index of the address
 		Index uint64
 	}
 	NewAddressRequest struct {
-		// Label for the new account
+		// Label for the new address
 		Label string
 	}
 	Address struct {
-		// Address of the account
+		// Address of the address
 		Address string
-		// Index of the account
+		// Index of the address
 		Index uint64
 		// Total balance of the address
 		Balance uint64
@@ -35,7 +35,7 @@ type (
 		UnlockedBalance uint64
 	}
 	SweepRequest struct {
-		// Source account index
+		// Source address index
 		SourceIndex uint64
 		// Destination Address
 		Destination string
@@ -47,7 +47,7 @@ type (
 	Sweep struct {
 		// Address of the transaction
 		Address []string
-		// Source account index
+		// Source address index
 		SourceIndex uint64
 		// Destination Address
 		Destination string
@@ -57,7 +57,7 @@ type (
 		Fee []uint64
 	}
 	TransferRequest struct {
-		// Source account index
+		// Source address index
 		SourceIndex uint64
 		// Destination Address
 		Destination string
@@ -71,7 +71,7 @@ type (
 	Transfer struct {
 		// Address of the transaction
 		Address string
-		// Source account index
+		// Source address index
 		SourceIndex uint64
 		// Destination Address
 		Destination string
@@ -109,7 +109,7 @@ type Wallet interface {
 	// Sync the wallet
 	Sync(ctx context.Context) (err error)
 
-	// Create a new address associate with the account
+	// Create a new address associate with the address
 	NewAddress(ctx context.Context, req NewAddressRequest) (address Address, err error)
 
 	// Transfers the entire balance of an address to destination

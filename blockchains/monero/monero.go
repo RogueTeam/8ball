@@ -106,6 +106,8 @@ func (w *Wallet) SweepAll(ctx context.Context, req blockchains.SweepRequest) (sw
 		AccountIndex:   0,
 		SubaddrIndices: []uint64{req.SourceIndex},
 		Priority:       priority,
+		Outputs:        1,
+		BelowAmount:    0xFFFFFFFFFFFFFFFF,
 		RingSize:       16, // Fixed by the network. May require update in the future
 		UnlockTime:     req.UnlockTime,
 		GetTxKeys:      true,
