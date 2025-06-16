@@ -259,7 +259,7 @@ func (c *Controller) Process() (err error) {
 	defer utils.ConsumeChannel(payments)
 	defer utils.ConsumeChannel(errChan)
 
-	var jobs = utils.NewJobPull(MaxConcurrentJobs)
+	var jobs = utils.NewJobPool(MaxConcurrentJobs)
 	var wg sync.WaitGroup
 	for payment := range payments {
 		jobs.Get()
