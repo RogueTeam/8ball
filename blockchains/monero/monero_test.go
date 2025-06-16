@@ -50,7 +50,7 @@ type dataGenerator struct {
 }
 
 func (g *dataGenerator) TransferAmount() (amount uint64) {
-	return 100000000
+	return 1000000000
 }
 
 func Test_Monero(t *testing.T) {

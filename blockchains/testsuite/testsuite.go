@@ -106,7 +106,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 				SourceIndex: 0,
 				Destination: dst.Address,
 				Amount:      gen.TransferAmount(),
-				Priority:    blockchains.PriorityLow,
+				Priority:    blockchains.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.Nil(err, "failed to transfer funds to internal address")
@@ -191,7 +191,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 				SourceIndex: 0,
 				Destination: dst.Address,
 				Amount:      0, // Zero amount
-				Priority:    blockchains.PriorityLow,
+				Priority:    blockchains.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.NotNil(err, "transfer should fail for zero amount")
@@ -213,7 +213,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 				SourceIndex: ^uint64(0),
 				Destination: dst.Address,
 				Amount:      gen.TransferAmount(),
-				Priority:    blockchains.PriorityLow,
+				Priority:    blockchains.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.NotNil(err, "transfer from non-existent address should fail")
@@ -244,7 +244,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 				SourceIndex: 0,
 				Destination: sweepSourceAddr.Address,
 				Amount:      gen.TransferAmount(),
-				Priority:    blockchains.PriorityLow,
+				Priority:    blockchains.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.Nil(err, "failed to transfer testing amount")
@@ -285,7 +285,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			var sweep blockchains.Sweep
 
 			t.Log("[*] Waiting for successful sweep")
-			for try := range 3_600 {
+			for range 3_600 {
 				t.Log("[*] Syncing")
 				err = w.Sync(ctx)
 				assertions.Nil(err, "failed to sync")
@@ -296,19 +296,19 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 				t.Log("[*] Balance:", sourceAddrLast.Balance)
 				t.Log("[*] Unlocked Balance:", sourceAddrLast.UnlockedBalance)
 
-				t.Log("[*] Sweep Attempt ", try+1)
+				if sourceAddrLast.UnlockedBalance == 0 {
+					time.Sleep(time.Second)
+					continue
+				}
+				t.Log("[*] Sweep Attempt ")
 				sweep, err = w.SweepAll(ctx, blockchains.SweepRequest{
 					SourceIndex: sweepSourceAddr.Index,
 					Destination: sweepDstAddr.Address,
 					Priority:    blockchains.PriorityHigh,
 					UnlockTime:  0,
 				})
-				if err == nil {
-					sweepSucceed = true
-					break
-				}
-				t.Log("\t[!]", err.Error())
-				time.Sleep(time.Second)
+				sweepSucceed = assertions.Nil(err, "failed to sweep funds")
+				break
 			}
 
 			if !assertions.True(sweepSucceed, "failed to sweep all funds") {
@@ -364,7 +364,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			_, err = w.SweepAll(ctx, blockchains.SweepRequest{
 				SourceIndex: emptyAddr.Index,
 				Destination: sweepDstAddr.Address,
-				Priority:    blockchains.PriorityLow,
+				Priority:    blockchains.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.NotNil(err, "sweeping an empty address should fail")
@@ -385,7 +385,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			_, err = w.SweepAll(ctx, blockchains.SweepRequest{
 				SourceIndex: ^uint64(0),
 				Destination: sweepDstAddr.Address,
-				Priority:    blockchains.PriorityLow,
+				Priority:    blockchains.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.NotNil(err, "sweep from non-existent address should fail")
