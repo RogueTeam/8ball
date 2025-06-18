@@ -46,15 +46,15 @@ type (
 	}
 	Sweep struct {
 		// Address of the transaction
-		Address []string
+		Address string
 		// Source address index
 		SourceIndex uint64
 		// Destination Address
 		Destination string
 		// Amount transfered
-		Amount []uint64
+		Amount uint64
 		// Fee applied to the transaction
-		Fee []uint64
+		Fee uint64
 	}
 	TransferRequest struct {
 		// Source address index

@@ -105,11 +105,11 @@ func (m *Mock) SweepAll(ctx context.Context, req blockchains.SweepRequest) (swee
 	mockTxHash := fmt.Sprintf("mock_sweep_tx_%d_%s", req.SourceIndex, req.Destination)
 
 	sweep = blockchains.Sweep{
-		Address:     []string{mockTxHash},
+		Address:     mockTxHash,
 		SourceIndex: req.SourceIndex,
 		Destination: req.Destination,
-		Amount:      []uint64{transferredAmount}, // Simulate fee deduction
-		Fee:         []uint64{appliedFee},
+		Amount:      transferredAmount, // Simulate fee deduction
+		Fee:         appliedFee,
 	}
 	m.transactions[mockTxHash] = Transaction{Sweep: &sweep} // Track the transaction
 
@@ -203,7 +203,7 @@ func (m *Mock) Transaction(ctx context.Context, req blockchains.TransactionReque
 
 	switch {
 	case transaction.Sweep != nil:
-		tx.Amount = transaction.Sweep.Amount[0]
+		tx.Amount = transaction.Sweep.Amount
 		tx.Destination = transaction.Sweep.Destination
 		tx.Status = blockchains.TransactionStatusCompleted
 	case transaction.Transfer != nil:

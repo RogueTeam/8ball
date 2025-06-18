@@ -13,8 +13,8 @@ import (
 
 var pendingPrefix = []byte("/pending/")
 
-// Streams pending payments into channels. Its intended be used in parallel while querying wallets
-// Wallets should must be consumed at all
+// Streams pending payments into a channel. Its intended be used in parallel while querying wallets
+// payments channel should must be consumed at all
 func (c *Controller) processStreamPendingPayments() (payments chan Payment, err chan error) {
 	payments = make(chan Payment, 1_000)
 	err = make(chan error, 1)
@@ -97,80 +97,92 @@ func calculateFee(amount, feePercentage uint64) (fee uint64) {
 // - Delete pending entry
 // - Try to transfer the received amount to beneficiary
 func (c *Controller) processExpiredPayment(p Payment) (err error) {
-	// No matter what delete pending payment
-	// 1. Remove entry from pending
-	defer func() { c.deletePendingPayment(p) }()
-	// 2. Update payment state
-	defer func() {
-		if err != nil {
-			p.Status = StatusError
-			p.Error = err.Error()
-		}
-		c.savePaymentState(p)
-	}()
-
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	account, err := c.wallet.Address(ctx, blockchains.AddressRequest{Index: p.ReceiverIndex})
+	address, err := c.wallet.Address(ctx, blockchains.AddressRequest{Index: p.ReceiverIndex})
 	if err != nil {
-		return fmt.Errorf("failed to retrieve payment account: %w", err)
+		return fmt.Errorf("failed to retrieve payment address: %w", err)
 	}
 
-	// If the payment was made successfully
-	if account.UnlockedBalance >= p.Amount {
-		p.Status = StatusCompleted
+	switch {
+	case address.UnlockedBalance > 0:
+		defer func() {
+			if err != nil {
+				p.Status = StatusError
+				p.Error = err.Error()
+			}
+			c.savePaymentState(p)
+		}()
 
-		fee := calculateFee(account.UnlockedBalance, p.Fee)
-		// Discount fee and transfer it to the beneficiary
-		_, err := c.wallet.Transfer(ctx, blockchains.TransferRequest{
-			SourceIndex: p.ReceiverIndex,
-			Destination: c.beneficiary,
-			Amount:      fee,
-			Priority:    blockchains.PriorityHigh,
-			UnlockTime:  0,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to transfer to beneficiary: %w", err)
+		if !p.FeePayed {
+			fee := calculateFee(address.UnlockedBalance, p.Fee)
+			// Discount fee and transfer it to the beneficiary
+			// Pay to the one running the gateway
+			var feeTransfer blockchains.Transfer
+			feeTransfer, err = c.wallet.Transfer(ctx, blockchains.TransferRequest{
+				SourceIndex: p.ReceiverIndex,
+				Destination: c.beneficiary,
+				Amount:      fee,
+				Priority:    blockchains.PriorityHigh,
+				UnlockTime:  0,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to transfer to beneficiary: %w", err)
+			}
+
+			// Confirm fee was payed
+			p.FeePayed = true
+			p.FeeTransaction = feeTransfer.Address
 		}
 
-		// Confirm fee was payed
-		p.FeePayed = true
+		if !p.BeneficiaryPayed {
+			// Transfer remaining balance to business
+			var beneficiarySweep blockchains.Sweep
+			beneficiarySweep, err = c.wallet.SweepAll(ctx, blockchains.SweepRequest{
+				SourceIndex: p.ReceiverIndex,
+				Destination: p.Beneficiary,
+				Priority:    p.Priority,
+				UnlockTime:  0,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to sweep remaining contents to destination: %w", err)
+			}
 
-		// Transfer remaining balance to destination
-		_, err = c.wallet.SweepAll(ctx, blockchains.SweepRequest{
-			SourceIndex: p.ReceiverIndex,
-			Destination: p.Beneficiary,
-			Priority:    p.Priority,
-			UnlockTime:  0,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to sweep remaining contents to destination: %w", err)
+			// Confirm destination was payed
+			p.BeneficiaryPayed = true
+			p.BeneficiaryTransaction = beneficiarySweep.Address
 		}
 
-		// Confirm destination was payed
-		p.DestinationPayed = true
-	} else if account.UnlockedBalance > 0 {
-		p.Status = StatusExpired
-		// Payment expired, we can make a profit from the unlocked balance
-		_, err = c.wallet.SweepAll(ctx, blockchains.SweepRequest{
-			SourceIndex: p.ReceiverIndex,
-			Destination: c.beneficiary,
-			Priority:    p.Priority,
-			UnlockTime:  0,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to sweep remaining contents to destination: %w", err)
+		// If the payment was made successfully
+		if address.UnlockedBalance >= p.Amount {
+			p.Status = StatusCompleted
+		} else {
+			// There is money but not enought
+			// Payment expired, we can make a profit from the unlocked balance
+			p.Status = StatusPartiallyCompleted
 		}
 
-		// Confirm fee was payed
-		p.FeePayed = true
-	} else {
+		c.deletePendingPayment(p)
+		return nil
+	case address.Balance > 0:
+		// Money is there but not available yet
+		return nil
+	default:
+		defer func() {
+			c.deletePendingPayment(p)
+
+			if err != nil {
+				p.Status = StatusError
+				p.Error = err.Error()
+			}
+			c.savePaymentState(p)
+		}()
+
 		// Expired and no money was found
 		p.Status = StatusExpired
+		return nil
 	}
-
-	return nil
 }
 
 // If it expired
@@ -190,7 +202,6 @@ func (c *Controller) processLivePayment(p Payment) (err error) {
 	}
 
 	// We have received the payment. Lets distribute it between participants
-	defer func() { c.deletePendingPayment(p) }()
 	defer func() {
 		if err != nil {
 			p.Status = StatusError
@@ -199,37 +210,44 @@ func (c *Controller) processLivePayment(p Payment) (err error) {
 		c.savePaymentState(p)
 	}()
 
+	if !p.FeePayed {
+		fee := calculateFee(account.UnlockedBalance, p.Fee)
+		// Discount fee and transfer it to the beneficiary
+		feeTransfer, err := c.wallet.Transfer(ctx, blockchains.TransferRequest{
+			SourceIndex: p.ReceiverIndex,
+			Destination: c.beneficiary,
+			Amount:      fee,
+			Priority:    blockchains.PriorityHigh,
+			UnlockTime:  0,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to transfer to beneficiary: %w", err)
+		}
+
+		// Confirm fee was payed
+		p.FeePayed = true
+		p.FeeTransaction = feeTransfer.Address
+	}
+
+	if !p.BeneficiaryPayed {
+		// Transfer remaining balance to destination
+		beneficiarySweep, err := c.wallet.SweepAll(ctx, blockchains.SweepRequest{
+			SourceIndex: p.ReceiverIndex,
+			Destination: p.Beneficiary,
+			Priority:    p.Priority,
+			UnlockTime:  0,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to sweep remaining contents to destination: %w", err)
+		}
+
+		// Confirm destination was payed
+		p.BeneficiaryPayed = true
+		p.BeneficiaryTransaction = beneficiarySweep.Address
+	}
+
+	c.deletePendingPayment(p)
 	p.Status = StatusCompleted
-
-	fee := calculateFee(account.UnlockedBalance, p.Fee)
-	// Discount fee and transfer it to the beneficiary
-	_, err = c.wallet.Transfer(ctx, blockchains.TransferRequest{
-		SourceIndex: p.ReceiverIndex,
-		Destination: c.beneficiary,
-		Amount:      fee,
-		Priority:    blockchains.PriorityHigh,
-		UnlockTime:  0,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to transfer to beneficiary: %w", err)
-	}
-
-	// Confirm fee was payed
-	p.FeePayed = true
-
-	// Transfer remaining balance to destination
-	_, err = c.wallet.SweepAll(ctx, blockchains.SweepRequest{
-		SourceIndex: p.ReceiverIndex,
-		Destination: p.Beneficiary,
-		Priority:    p.Priority,
-		UnlockTime:  0,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to sweep remaining contents to destination: %w", err)
-	}
-
-	// Confirm destination was payed
-	p.DestinationPayed = true
 	return nil
 }
 

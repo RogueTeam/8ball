@@ -69,7 +69,7 @@ func Benchmark_Insertion(b *testing.B) {
 	for range b.N {
 		for i := 0; i < numPayments; i++ {
 			// Create the payment intent in the controller.
-			_, err := ctrl.New(receiver.Address, 10_000, blockchains.PriorityHigh)
+			_, err := ctrl.Receive(gateway.Receive{Destination: receiver.Address, Amount: 10_000, Priority: blockchains.PriorityHigh})
 			assertions.Nil(err, "failed to create payment")
 		}
 	}

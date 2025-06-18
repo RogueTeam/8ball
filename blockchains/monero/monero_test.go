@@ -46,13 +46,6 @@ func newClient(t *testing.T) (client *rpc.Client) {
 	return client
 }
 
-type dataGenerator struct {
-}
-
-func (g *dataGenerator) TransferAmount() (amount uint64) {
-	return 1000000000
-}
-
 func Test_Monero(t *testing.T) {
 	t.Run("Succeed", func(t *testing.T) {
 		assertions := assert.New(t)
@@ -72,6 +65,6 @@ func Test_Monero(t *testing.T) {
 		}
 		wallet := monero.New(config)
 
-		testsuite.Test(t, &wallet, &dataGenerator{})
+		testsuite.Test(t, wallet, &testsuite.MoneroGenerator{})
 	})
 }

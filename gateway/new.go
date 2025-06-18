@@ -11,15 +11,21 @@ import (
 	"github.com/google/uuid"
 )
 
+type Receive struct {
+	Destination string
+	Amount      uint64
+	Priority    blockchains.Priority
+}
+
 // Creates a new payment address based on the passed crypto currency and amount expected to receive
 // It uses the default timeout in order to prevent infinite entries
 // id is the id to be used for future checks
 // fee is the percentage to be discounted from the entire transaction
-func (c *Controller) New(dst string, amount uint64, priority blockchains.Priority) (payment Payment, err error) {
+func (c *Controller) Receive(req Receive) (payment Payment, err error) {
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	valid, err := c.wallet.ValidateAddress(ctx, blockchains.ValidateAddressRequest{Address: dst})
+	valid, err := c.wallet.ValidateAddress(ctx, blockchains.ValidateAddressRequest{Address: req.Destination})
 	if err != nil {
 		return payment, fmt.Errorf("failed to validate dst address: %w", err)
 	}
@@ -39,10 +45,10 @@ func (c *Controller) New(dst string, amount uint64, priority blockchains.Priorit
 			Id:            uuid.New(),
 			Status:        StatusPending,
 			Expiration:    time.Now().Add(c.timeout),
-			Amount:        amount,
-			Priority:      priority,
+			Amount:        req.Amount,
+			Priority:      req.Priority,
 			Fee:           c.fee,
-			Beneficiary:   dst,
+			Beneficiary:   req.Destination,
 			Receiver:      receiver.Address,
 			ReceiverIndex: receiver.Index,
 		}

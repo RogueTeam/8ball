@@ -70,15 +70,10 @@ Follow these steps to set up your Tor daemon:
 
     ```pf
     # --- Rules for Tor Daemon ---
-    # Allow outgoing connections from the _tor user to the internet.
-    # This is essential for Tor to build circuits.
     pass out quick on egress proto { tcp udp } user _tor
 
-    # Allow incoming TCP connections to the local SOCKS port (for http2socks or other local apps).
     pass in quick on lo0 proto tcp to 127.0.0.1 port 9050
 
-    # Allow traffic from 20.30.40.0/24 to your machine's 9050 on the specified interface
-    # Using 'quick' here is good practice to ensure this rule is the final decision if it matches.
     pass in quick on egress proto tcp from 20.30.40.0/24 to 20.30.40.1 port 9050 keep state
     # --- End of Tor Rules ---
     ```

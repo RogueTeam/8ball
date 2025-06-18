@@ -27,7 +27,8 @@ type Config struct {
 	Fee uint64
 	// Default Timeout until payment in canceled
 	Timeout time.Duration
-	// Beneficiaries address per currency. To these address the money is going to be payed
+	// Beneficiaries address. To these address the money is going to be payed
+	// This is the address of the one running the gateway
 	Beneficiary string
 	// Wallets to be used in the transactions
 	Wallet blockchains.Wallet

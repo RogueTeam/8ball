@@ -1,87 +1,43 @@
 package gateway_test
 
 import (
+	"net/http"
+	"os"
 	"testing"
-	"time"
 
-	"anarchy.ttfm/8ball/blockchains"
 	"anarchy.ttfm/8ball/blockchains/mock"
-	"anarchy.ttfm/8ball/gateway"
-	"anarchy.ttfm/8ball/random"
-	"anarchy.ttfm/8ball/utils"
-	"github.com/dgraph-io/badger/v4"
+	"anarchy.ttfm/8ball/blockchains/monero"
+	testsuite2 "anarchy.ttfm/8ball/blockchains/testsuite"
+	"anarchy.ttfm/8ball/gateway/testsuite"
+	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
+	"github.com/gabstv/httpdigest"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Integration(t *testing.T) {
-	t.Run("Succeed", func(t *testing.T) {
+	t.Run("Mock", func(t *testing.T) {
+		w := mock.New()
+		testsuite.Test(t, w, &testsuite2.MockGenerator{})
+	})
+	t.Run("Monero", func(t *testing.T) {
 		assertions := assert.New(t)
 
-		ctx, cancel := utils.NewContext()
-		defer cancel()
+		walletFilename := os.Getenv("MONERO_WALLET_FILENAME")
+		assertions.NotEmpty(walletFilename, "MONERO_WALLET_FILENAME")
+		walletPassword := os.Getenv("MONERO_WALLET_PASSWORD")
+		assertions.NotEmpty(walletPassword, "MONERO_WALLET_PASSWORD")
 
-		wallet := mock.New()
+		var config = rpc.Config{
+			Address: "http://127.0.0.1:22222/json_rpc",
 
-		label1 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		beneficiary, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: label1})
-		assertions.Nil(err, "failed to create beneficiary account")
-
-		options := badger.
-			DefaultOptions("").
-			WithInMemory(true)
-		db, err := badger.Open(options)
-		assertions.Nil(err, "failed to open database")
-		var config = gateway.Config{
-			DB:          db,
-			Fee:         1,
-			Timeout:     5 * time.Second,
-			Beneficiary: beneficiary.Address,
-			Wallet:      wallet,
+			Client: &http.Client{
+				Transport: httpdigest.New("username", "password"), // Remove if no auth.
+			},
 		}
-		ctrl := gateway.New(config)
-		// t.Logf("Create controller: %+v", ctrl)
 
-		label2 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		receiver, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: label2})
-		assertions.Nil(err, "failed to create dst account")
+		client := rpc.New(config)
 
-		payment, err := ctrl.New(receiver.Address, 10_000, blockchains.PriorityHigh)
-		assertions.Nil(err, "failed to create payment")
-		// t.Logf("Create payment: %+v", payment)
-
-		// Query first
-		firstQuery, err := ctrl.Query(payment.Id)
-		assertions.Nil(err, "failed to query first payment")
-
-		assertions.Equal(payment.Id, firstQuery.Id, "Don't equal")
-
-		// Pay the dst
-		_, err = wallet.Transfer(ctx, blockchains.TransferRequest{
-			SourceIndex: 0,
-			Destination: payment.Receiver,
-			Amount:      10_000,
-			Priority:    blockchains.PriorityHigh,
-			UnlockTime:  0,
-		})
-		assertions.Nil(err, "failed to transfer to destination")
-
-		// Process
-		err = ctrl.Process()
-		assertions.Nil(err, "failed to process payments")
-
-		// Verify payment
-		secondQuery, err := ctrl.Query(payment.Id)
-		assertions.Nil(err, "failed to query payment")
-
-		assertions.Equal(gateway.StatusCompleted, secondQuery.Status, "status don't match")
-
-		// Verify beneficiary received the fee
-		beneficiaryAccount, err := wallet.Address(ctx, blockchains.AddressRequest{Index: beneficiary.Index})
-		assertions.Nil(err, "failed to query beneficiary account")
-		assertions.Equal(uint64(100), beneficiaryAccount.UnlockedBalance, "invalid beneficiary balance")
-		// Verify Destination received the rest of the money
-		receiverAccount, err := wallet.Address(ctx, blockchains.AddressRequest{Index: receiver.Index})
-		assertions.Nil(err, "failed to query receiver account")
-		assertions.NotZero(receiverAccount.UnlockedBalance, "invalid receiver balance")
+		w := monero.New(monero.Config{Client: client})
+		testsuite.Test(t, w, &testsuite2.MoneroGenerator{})
 	})
 }

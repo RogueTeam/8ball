@@ -333,7 +333,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			for try := range 3_600 {
 				t.Log("[*] Checking Transaction: Attempt ", try+1)
 
-				tx, err := w.Transaction(ctx, blockchains.TransactionRequest{TransactionId: sweep.Address[0]})
+				tx, err := w.Transaction(ctx, blockchains.TransactionRequest{TransactionId: sweep.Address})
 				assertions.Nil(err, "failed to get destination address balance after internal transfer")
 
 				if tx.Status == blockchains.TransactionStatusCompleted {

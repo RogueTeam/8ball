@@ -12,10 +12,11 @@ import (
 type Status string
 
 const (
-	StatusPending   Status = "pending"
-	StatusCompleted Status = "completed"
-	StatusExpired   Status = "expired"
-	StatusError     Status = "error"
+	StatusPending            Status = "pending"
+	StatusCompleted          Status = "completed"
+	StatusPartiallyCompleted Status = "partially-completed"
+	StatusExpired            Status = "expired"
+	StatusError              Status = "error"
 )
 
 func PendingKey(id uuid.UUID) (key string) {
@@ -39,18 +40,22 @@ type Payment struct {
 	Priority blockchains.Priority
 	// Fee percentage to discount from the transaction
 	Fee uint64
-	// Address that should receive the funds
+	// Address that should receive the funds from the "client"
 	Receiver string
-	// Gateway address for receiving the transaction
+	// Gateway address for receiving the transaction from the "client"
 	ReceiverIndex uint64
-	// Beneficiary address to forward funds
+	// Beneficiary address to forward funds "business"
 	Beneficiary string
 	// Error message
 	Error string
 	// Confirmation if Fee could be discounted and payed to beneficiary
 	FeePayed bool
+	// Fee transaction address. Used for identifying the transaction that payed the fee
+	FeeTransaction string
 	// Confirmation if destination could receive its money
-	DestinationPayed bool
+	BeneficiaryPayed bool
+	// Beneficiary transaction address. Used for identifying the transaction that payed the Beneficiary
+	BeneficiaryTransaction string
 }
 
 func (p *Payment) Bytes() (bytes []byte) {

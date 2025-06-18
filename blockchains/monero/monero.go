@@ -126,11 +126,11 @@ func (w *Wallet) SweepAll(ctx context.Context, req blockchains.SweepRequest) (sw
 	}
 
 	sweep = blockchains.Sweep{
-		Address:     res.TxHashList,
+		Address:     res.TxHashList[0],
 		SourceIndex: req.SourceIndex,
 		Destination: req.Destination,
-		Amount:      utils.MapInt[int, uint64](res.AmountList),
-		Fee:         utils.MapInt[int, uint64](res.FeeList),
+		Amount:      utils.MapInt[int, uint64](res.AmountList)[0],
+		Fee:         utils.MapInt[int, uint64](res.FeeList)[0],
 	}
 
 	return
@@ -247,7 +247,9 @@ func (w *Wallet) Transaction(ctx context.Context, req blockchains.TransactionReq
 	return tx, nil
 }
 
-func New(config Config) (w Wallet) {
-	w.client = config.Client
+func New(config Config) (w *Wallet) {
+	w = &Wallet{
+		client: config.Client,
+	}
 	return w
 }
