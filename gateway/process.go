@@ -197,12 +197,17 @@ func (c *Controller) processLivePayment(p Payment) (err error) {
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	account, err := c.wallet.Address(ctx, blockchains.AddressRequest{Index: p.ReceiverIndex})
+	address, err := c.wallet.Address(ctx, blockchains.AddressRequest{Index: p.ReceiverIndex})
 	if err != nil {
-		return fmt.Errorf("failed to retrieve payment account: %w", err)
+		return fmt.Errorf("failed to retrieve payment address: %w", err)
 	}
 	// Ignore since we don't have received the payment
-	if account.UnlockedBalance < p.Amount {
+	if address.UnlockedBalance < p.Amount {
+		return nil
+	}
+
+	if address.UnlockedBalance < address.Balance {
+		// Address has the more funds but they are not ready yet
 		return nil
 	}
 
@@ -216,7 +221,7 @@ func (c *Controller) processLivePayment(p Payment) (err error) {
 	}()
 
 	if !p.FeePayed {
-		fee := calculateFee(account.UnlockedBalance, p.Fee)
+		fee := calculateFee(address.UnlockedBalance, p.Fee)
 		// Discount fee and transfer it to the beneficiary
 		feeTransfer, err := c.wallet.Transfer(ctx, blockchains.TransferRequest{
 			SourceIndex: p.ReceiverIndex,
