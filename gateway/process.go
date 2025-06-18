@@ -107,6 +107,11 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 
 	switch {
 	case address.UnlockedBalance > 0:
+		if address.UnlockedBalance < address.Balance {
+			// Address has the more funds but they are not ready yet
+			return nil
+		}
+
 		defer func() {
 			if err != nil {
 				p.Status = StatusError
