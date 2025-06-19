@@ -15,11 +15,14 @@ import (
 )
 
 func Test_Integration(t *testing.T) {
+	t.Parallel()
 	t.Run("Mock", func(t *testing.T) {
+		t.Parallel()
 		w := mock.New()
 		testsuite.Test(t, w, &testsuite2.MockGenerator{})
 	})
 	t.Run("Monero", func(t *testing.T) {
+		t.Parallel()
 		assertions := assert.New(t)
 
 		walletFilename := os.Getenv("MONERO_WALLET_FILENAME")

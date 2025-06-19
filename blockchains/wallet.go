@@ -2,6 +2,7 @@ package blockchains
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 )
 
@@ -126,4 +127,9 @@ type Wallet interface {
 
 	// Query the status of a transaction
 	Transaction(ctx context.Context, req TransactionRequest) (tx Transaction, err error)
+}
+
+func (a *Address) String() (s string) {
+	contents, _ := json.Marshal(a)
+	return string(contents)
 }

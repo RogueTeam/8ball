@@ -48,12 +48,16 @@ type Payment struct {
 	Beneficiary string
 	// Error message
 	Error string
+	// Amount payed to the gateway
+	PayedFee uint64
 	// Confirmation if Fee could be discounted and payed to beneficiary
-	FeePayed bool
+	IsFeePayed bool
 	// Fee transaction address. Used for identifying the transaction that payed the fee
 	FeeTransaction string
+	// Amount payed to "business"
+	PayedBeneficiary uint64
 	// Confirmation if destination could receive its money
-	BeneficiaryPayed bool
+	IsBeneficiaryPayed bool
 	// Beneficiary transaction address. Used for identifying the transaction that payed the Beneficiary
 	BeneficiaryTransaction string
 }

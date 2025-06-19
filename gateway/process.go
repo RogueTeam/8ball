@@ -1,6 +1,8 @@
 package gateway
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -100,6 +102,11 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
+	err = c.wallet.Sync(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to sync wallet: %w", err)
+	}
+
 	address, err := c.wallet.Address(ctx, blockchains.AddressRequest{Index: p.ReceiverIndex})
 	if err != nil {
 		return fmt.Errorf("failed to retrieve payment address: %w", err)
@@ -120,47 +127,40 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 			c.savePaymentState(p)
 		}()
 
-		if !p.FeePayed {
-			fee := calculateFee(address.UnlockedBalance, p.Fee)
-			// Discount fee and transfer it to the beneficiary
-			// Pay to the one running the gateway
-			var feeTransfer blockchains.Transfer
-			feeTransfer, err = c.wallet.Transfer(ctx, blockchains.TransferRequest{
-				SourceIndex: p.ReceiverIndex,
-				Destination: c.beneficiary,
-				Amount:      fee,
-				Priority:    blockchains.PriorityHigh,
-				UnlockTime:  0,
-			})
+		if p.FeeTransaction != "" {
+			feePayed, err := c.transactionCompleted(ctx, p.FeeTransaction)
 			if err != nil {
-				return fmt.Errorf("failed to transfer to beneficiary: %w", err)
+				return fmt.Errorf("failed to check if fee was paid: %w", err)
 			}
 
-			// Confirm fee was payed
-			p.FeePayed = true
-			p.FeeTransaction = feeTransfer.Address
-		}
-
-		if !p.BeneficiaryPayed {
-			// Transfer remaining balance to business
-			var beneficiarySweep blockchains.Sweep
-			beneficiarySweep, err = c.wallet.SweepAll(ctx, blockchains.SweepRequest{
-				SourceIndex: p.ReceiverIndex,
-				Destination: p.Beneficiary,
-				Priority:    p.Priority,
-				UnlockTime:  0,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to sweep remaining contents to destination: %w", err)
+			if !feePayed {
+				return nil
 			}
-
-			// Confirm destination was payed
-			p.BeneficiaryPayed = true
-			p.BeneficiaryTransaction = beneficiarySweep.Address
+			p.IsFeePayed = true
 		}
+
+		err = c.payFee(ctx, &p)
+		if err != nil {
+			return fmt.Errorf("failed to pay fee: %w", err)
+		}
+
+		err = c.payBeneficiary(ctx, &p)
+		if err != nil {
+			return fmt.Errorf("failed to pay beneficiary: %w", err)
+		}
+
+		beneficiaryPayed, err := c.transactionCompleted(ctx, p.BeneficiaryTransaction)
+		if err != nil {
+			return fmt.Errorf("failed to check if beneficiary was paid: %w", err)
+		}
+
+		if !beneficiaryPayed {
+			return nil
+		}
+		p.IsBeneficiaryPayed = true
 
 		// If the payment was made successfully
-		if address.UnlockedBalance >= p.Amount {
+		if p.PayedFee == calculateFee(p.Amount, p.Fee) {
 			p.Status = StatusCompleted
 		} else {
 			// There is money but not enought
@@ -190,19 +190,117 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 	}
 }
 
-// If it expired
-// - Delete pending entry
-// - Try to transfer the received amount to beneficiary
-func (c *Controller) processLivePayment(p Payment) (err error) {
-	ctx, cancel := utils.NewContext()
-	defer cancel()
+func (c *Controller) payFee(ctx context.Context, p *Payment) (err error) {
+	if p.IsFeePayed || p.Fee == 0 || p.FeeTransaction != "" {
+		return
+	}
+
+	err = c.wallet.Sync(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to sync wallet: %w", err)
+	}
 
 	address, err := c.wallet.Address(ctx, blockchains.AddressRequest{Index: p.ReceiverIndex})
 	if err != nil {
 		return fmt.Errorf("failed to retrieve payment address: %w", err)
 	}
+
+	fee := calculateFee(address.UnlockedBalance, p.Fee)
+
+	// Discount fee and transfer it to the beneficiary
+	feeTransfer, err := c.wallet.Transfer(ctx, blockchains.TransferRequest{
+		SourceIndex: p.ReceiverIndex,
+		Destination: c.beneficiary,
+		Amount:      fee,
+		Priority:    blockchains.PriorityHigh,
+		UnlockTime:  0,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to transfer to beneficiary: %w", err)
+	}
+
+	// Confirm fee was payed
+	p.PayedFee = fee
+	p.FeeTransaction = feeTransfer.Address
+
+	return
+}
+
+func (c *Controller) payBeneficiary(ctx context.Context, p *Payment) (err error) {
+	if p.IsBeneficiaryPayed || p.BeneficiaryTransaction != "" {
+		return
+	}
+
+	err = c.wallet.Sync(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to sync wallet: %w", err)
+	}
+
+	address, err := c.wallet.Address(ctx, blockchains.AddressRequest{Index: p.ReceiverIndex})
+	if err != nil {
+		return fmt.Errorf("failed to retrieve payment address: %w", err)
+	}
+
+	// Transfer remaining balance to destination
+	beneficiarySweep, err := c.wallet.SweepAll(ctx, blockchains.SweepRequest{
+		SourceIndex: p.ReceiverIndex,
+		Destination: p.Beneficiary,
+		Priority:    p.Priority,
+		UnlockTime:  0,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to sweep remaining contents to destination: %w -> %s", err, address.String())
+	}
+
+	// Confirm destination was payed
+	p.PayedBeneficiary = beneficiarySweep.Amount
+	p.BeneficiaryTransaction = beneficiarySweep.Address
+
+	return nil
+}
+
+func (c *Controller) transactionCompleted(ctx context.Context, address string) (payed bool, err error) {
+	err = c.wallet.Sync(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to sync wallet: %w", err)
+	}
+
+	tx, err := c.wallet.Transaction(ctx, blockchains.TransactionRequest{TransactionId: address})
+	if err != nil {
+		return false, fmt.Errorf("failed to query transaction: %w", err)
+	}
+
+	switch tx.Status {
+	case blockchains.TransactionStatusCompleted:
+		return true, nil
+	case blockchains.TransactionStatusPending:
+		return false, nil
+	default: // blockchains.TransactionStatusFailed
+		return false, errors.New("transaction failed")
+	}
+}
+
+// If it expired
+// - Delete pending entry
+// - Try to transfer the received amount to beneficiary
+func (c *Controller) processLivePayment(p Payment) (err error) {
+	log.Println("Processing live payment")
+	ctx, cancel := utils.NewContext()
+	defer cancel()
+
+	err = c.wallet.Sync(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to sync wallet: %w", err)
+	}
+
+	address, err := c.wallet.Address(ctx, blockchains.AddressRequest{Index: p.ReceiverIndex})
+	if err != nil {
+		return fmt.Errorf("failed to retrieve payment address: %w", err)
+	}
+
+	log.Println(address.String())
 	// Ignore since we don't have received the payment
-	if address.UnlockedBalance < p.Amount {
+	if !p.IsFeePayed && address.UnlockedBalance < p.Amount {
 		return nil
 	}
 
@@ -220,40 +318,37 @@ func (c *Controller) processLivePayment(p Payment) (err error) {
 		c.savePaymentState(p)
 	}()
 
-	if !p.FeePayed {
-		fee := calculateFee(address.UnlockedBalance, p.Fee)
-		// Discount fee and transfer it to the beneficiary
-		feeTransfer, err := c.wallet.Transfer(ctx, blockchains.TransferRequest{
-			SourceIndex: p.ReceiverIndex,
-			Destination: c.beneficiary,
-			Amount:      fee,
-			Priority:    blockchains.PriorityHigh,
-			UnlockTime:  0,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to transfer to beneficiary: %w", err)
-		}
-
-		// Confirm fee was payed
-		p.FeePayed = true
-		p.FeeTransaction = feeTransfer.Address
+	err = c.payFee(ctx, &p)
+	if err != nil {
+		return fmt.Errorf("failed to pay fee: %w", err)
 	}
 
-	if !p.BeneficiaryPayed {
-		// Transfer remaining balance to destination
-		beneficiarySweep, err := c.wallet.SweepAll(ctx, blockchains.SweepRequest{
-			SourceIndex: p.ReceiverIndex,
-			Destination: p.Beneficiary,
-			Priority:    p.Priority,
-			UnlockTime:  0,
-		})
+	if p.FeeTransaction != "" {
+		feePayed, err := c.transactionCompleted(ctx, p.FeeTransaction)
 		if err != nil {
-			return fmt.Errorf("failed to sweep remaining contents to destination: %w", err)
+			return fmt.Errorf("failed to check if fee was paid: %w", err)
 		}
 
-		// Confirm destination was payed
-		p.BeneficiaryPayed = true
-		p.BeneficiaryTransaction = beneficiarySweep.Address
+		if !feePayed {
+			return nil
+		}
+
+		p.IsFeePayed = true
+	}
+
+	err = c.payBeneficiary(ctx, &p)
+	if err != nil {
+		return fmt.Errorf("failed to pay beneficiary: %w", err)
+	}
+
+	beneficiaryPayed, err := c.transactionCompleted(ctx, p.BeneficiaryTransaction)
+	if err != nil {
+		return fmt.Errorf("failed to check if beneficiary was paid: %w", err)
+	}
+	p.IsBeneficiaryPayed = true
+
+	if !beneficiaryPayed {
+		return nil
 	}
 
 	c.deletePendingPayment(p)

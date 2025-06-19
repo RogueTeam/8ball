@@ -11,5 +11,5 @@ type MoneroGenerator struct {
 }
 
 func (g *MoneroGenerator) TransferAmount() (amount uint64) {
-	return 1000000000
+	return 1_000_000_000_000
 }

@@ -1,6 +1,7 @@
 package testsuite
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ func Test(t *testing.T, wallet blockchains.Wallet, gen DataGenerator) {
 		defer cancel()
 
 		label1 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		beneficiary, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: label1})
+		gatewayAddress, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: label1})
 		assertions.Nil(err, "failed to create beneficiary account")
 
 		options := badger.
@@ -37,20 +38,20 @@ func Test(t *testing.T, wallet blockchains.Wallet, gen DataGenerator) {
 		assertions.Nil(err, "failed to open database")
 		var config = gateway.Config{
 			DB:          db,
-			Fee:         1,
+			Fee:         10,
 			Timeout:     24 * time.Hour,
-			Beneficiary: beneficiary.Address,
+			Beneficiary: gatewayAddress.Address,
 			Wallet:      wallet,
 		}
 		ctrl := gateway.New(config)
 		// t.Logf("Create controller: %+v", ctrl)
 
 		label2 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		receiver, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: label2})
+		businessAddress, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: label2})
 		assertions.Nil(err, "failed to create dst account")
 
 		payment, err := ctrl.Receive(gateway.Receive{
-			Destination: receiver.Address, Amount: gen.TransferAmount(), Priority: blockchains.PriorityHigh,
+			Destination: businessAddress.Address, Amount: gen.TransferAmount(), Priority: blockchains.PriorityHigh,
 		})
 		assertions.Nil(err, "failed to create payment")
 		// t.Logf("Create payment: %+v", payment)
@@ -62,7 +63,7 @@ func Test(t *testing.T, wallet blockchains.Wallet, gen DataGenerator) {
 		assertions.Equal(payment.Id, firstQuery.Id, "Don't equal")
 
 		// Pay the dst
-		_, err = wallet.Transfer(ctx, blockchains.TransferRequest{
+		clientTransfer, err := wallet.Transfer(ctx, blockchains.TransferRequest{
 			SourceIndex: 0,
 			Destination: payment.Receiver,
 			Amount:      gen.TransferAmount(),
@@ -71,23 +72,79 @@ func Test(t *testing.T, wallet blockchains.Wallet, gen DataGenerator) {
 		})
 		assertions.Nil(err, "failed to transfer to destination")
 
+		t.Log("[*] Waiting for payment be effective")
+		var paymentEffective bool
+		for try := range 3_600 {
+			t.Log("[*] Try: ", try+1)
+			tx, err := wallet.Transaction(ctx, blockchains.TransactionRequest{TransactionId: clientTransfer.Address})
+			assertions.Nil(err, "failed to retrieve transaction")
+
+			if tx.Status == blockchains.TransactionStatusCompleted {
+				paymentEffective = true
+				break
+			}
+			time.Sleep(time.Second)
+		}
+		assertions.True(paymentEffective, "payment not made effective")
+		t.Log("[+] Transaction made effective")
+
 		// Process
-		err = ctrl.Process()
-		assertions.Nil(err, "failed to process payments")
+		t.Log("[*] Processing payments")
+		var paymentProcessed bool
+		for try := range 3_600 {
+			t.Log("[*] Try: ", try+1)
 
-		// Verify payment
-		secondQuery, err := ctrl.Query(payment.Id)
-		assertions.Nil(err, "failed to query payment")
+			err = ctrl.Process()
+			assertions.Nil(err, "failed to process payments")
 
-		assertions.Equal(gateway.StatusCompleted, secondQuery.Status, "status don't match")
+			// Verify payment
+			paymentLatest, err := ctrl.Query(payment.Id)
+			assertions.Nil(err, "failed to query payment")
 
-		// Verify beneficiary received the fee
-		beneficiaryAccount, err := wallet.Address(ctx, blockchains.AddressRequest{Index: beneficiary.Index})
-		assertions.Nil(err, "failed to query beneficiary account")
-		assertions.Equal(uint64(100), beneficiaryAccount.UnlockedBalance, "invalid beneficiary balance")
-		// Verify Destination received the rest of the money
-		receiverAccount, err := wallet.Address(ctx, blockchains.AddressRequest{Index: receiver.Index})
-		assertions.Nil(err, "failed to query receiver account")
-		assertions.NotZero(receiverAccount.UnlockedBalance, "invalid receiver balance")
+			contents, _ := json.MarshalIndent(paymentLatest, "", "\t")
+			t.Log(string(contents))
+
+			if paymentLatest.Status == gateway.StatusCompleted {
+				paymentProcessed = true
+				break
+			}
+			time.Sleep(time.Second)
+		}
+
+		assertions.True(paymentProcessed, "payment not processed")
+
+		t.Log("[*] Waiting for beneficiary be credited")
+		var beneficiaryPayed bool
+		for try := range 3_600 {
+			t.Log("[*] Try: ", try+1)
+			beneficiaryLatestAddress, err := wallet.
+				Address(ctx, blockchains.AddressRequest{Index: gatewayAddress.Index})
+			assertions.Nil(err, "failed to query beneficiary address")
+
+			if beneficiaryLatestAddress.UnlockedBalance > 0 {
+				beneficiaryPayed = true
+				break
+			}
+			time.Sleep(time.Second)
+		}
+		assertions.True(beneficiaryPayed, "beneficiary not payed")
+		t.Log("[+] Beneficiary payed")
+
+		t.Log("[*] Waiting for bussines be credited")
+		var bussinessPayed bool
+		for try := range 3_600 {
+			t.Log("[*] Try: ", try+1)
+
+			businessLatestAddress, err := wallet.Address(ctx, blockchains.AddressRequest{Index: businessAddress.Index})
+			assertions.Nil(err, "failed to query bussiness addrss")
+
+			if businessLatestAddress.UnlockedBalance > 0 {
+				bussinessPayed = true
+				break
+			}
+			time.Sleep(time.Second)
+		}
+		assertions.True(bussinessPayed, "business not payed")
+		t.Log("[+] Bussiness payed")
 	})
 }
