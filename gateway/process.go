@@ -127,16 +127,15 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 			c.savePaymentState(p)
 		}()
 
-		if p.FeeTransaction != "" {
-			feePayed, err := c.transactionCompleted(ctx, p.FeeTransaction)
+		if p.FeeTransaction != "" && !p.IsFeePayed {
+			p.IsFeePayed, err = c.transactionCompleted(ctx, p.FeeTransaction)
 			if err != nil {
 				return fmt.Errorf("failed to check if fee was paid: %w", err)
 			}
 
-			if !feePayed {
+			if !p.IsFeePayed {
 				return nil
 			}
-			p.IsFeePayed = true
 		}
 
 		err = c.payFee(ctx, &p)
@@ -149,15 +148,14 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 			return fmt.Errorf("failed to pay beneficiary: %w", err)
 		}
 
-		beneficiaryPayed, err := c.transactionCompleted(ctx, p.BeneficiaryTransaction)
+		p.IsBeneficiaryPayed, err = c.transactionCompleted(ctx, p.BeneficiaryTransaction)
 		if err != nil {
 			return fmt.Errorf("failed to check if beneficiary was paid: %w", err)
 		}
 
-		if !beneficiaryPayed {
+		if !p.IsBeneficiaryPayed {
 			return nil
 		}
-		p.IsBeneficiaryPayed = true
 
 		// If the payment was made successfully
 		if p.PayedFee == calculateFee(p.Amount, p.Fee) {
@@ -191,6 +189,8 @@ func (c *Controller) processExpiredPayment(p Payment) (err error) {
 }
 
 func (c *Controller) payFee(ctx context.Context, p *Payment) (err error) {
+	log.Println("Paying fee")
+
 	if p.IsFeePayed || p.Fee == 0 || p.FeeTransaction != "" {
 		return
 	}
@@ -227,6 +227,8 @@ func (c *Controller) payFee(ctx context.Context, p *Payment) (err error) {
 }
 
 func (c *Controller) payBeneficiary(ctx context.Context, p *Payment) (err error) {
+	log.Println("Paying beneficiary")
+
 	if p.IsBeneficiaryPayed || p.BeneficiaryTransaction != "" {
 		return
 	}
@@ -260,6 +262,7 @@ func (c *Controller) payBeneficiary(ctx context.Context, p *Payment) (err error)
 }
 
 func (c *Controller) transactionCompleted(ctx context.Context, address string) (payed bool, err error) {
+	log.Println("Checking transaction")
 	err = c.wallet.Sync(ctx)
 	if err != nil {
 		return false, fmt.Errorf("failed to sync wallet: %w", err)
@@ -323,17 +326,15 @@ func (c *Controller) processLivePayment(p Payment) (err error) {
 		return fmt.Errorf("failed to pay fee: %w", err)
 	}
 
-	if p.FeeTransaction != "" {
-		feePayed, err := c.transactionCompleted(ctx, p.FeeTransaction)
+	if p.FeeTransaction != "" && !p.IsFeePayed {
+		p.IsFeePayed, err = c.transactionCompleted(ctx, p.FeeTransaction)
 		if err != nil {
 			return fmt.Errorf("failed to check if fee was paid: %w", err)
 		}
 
-		if !feePayed {
+		if !p.IsFeePayed {
 			return nil
 		}
-
-		p.IsFeePayed = true
 	}
 
 	err = c.payBeneficiary(ctx, &p)
