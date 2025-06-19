@@ -26,7 +26,7 @@ type DataGenerator interface {
 var succeedTests []byte
 
 // Test runs a comprehensive suite of tests for any Wallet implementation.
-func Test(t *testing.T, wallet wallets.Wallet, gen DataGenerator) {
+func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen DataGenerator) {
 	t.Run("Succeed", func(t *testing.T) {
 		assertions := assert.New(t)
 
@@ -66,7 +66,7 @@ func Test(t *testing.T, wallet wallets.Wallet, gen DataGenerator) {
 				assertions.Nil(err, "failed to open database")
 				var config = gateway.Config{
 					DB:          db,
-					Timeout:     test.Timeout,
+					Timeout:     timeoutExtra + test.Timeout,
 					Beneficiary: gatewayAddress.Address,
 					Wallet:      wallet,
 				}
