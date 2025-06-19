@@ -10,7 +10,7 @@ import (
 	badger "github.com/dgraph-io/badger/v4"
 )
 
-func (c *Controller) getAddress(ctx context.Context, r Receiver) (address wallets.Address, err error) {
+func (c *Controller) getReceiverAddress(ctx context.Context, r Receiver) (address wallets.Address, err error) {
 	log.Println("Querying address:", r.Index)
 
 	err = c.wallet.Sync(ctx)

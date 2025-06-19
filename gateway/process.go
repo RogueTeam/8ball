@@ -20,7 +20,7 @@ func (c *Controller) processPayment(p Payment) (err error) {
 	ctx, cancel := utils.NewContext()
 	defer cancel()
 
-	address, err := c.getAddress(ctx, p.Receiver)
+	address, err := c.getReceiverAddress(ctx, p.Receiver)
 	if err != nil {
 		return fmt.Errorf("failed to get address: %w", err)
 	}
