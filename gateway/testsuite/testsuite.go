@@ -5,12 +5,15 @@ import (
 	"testing"
 	"time"
 
-	"anarchy.ttfm/8ball/blockchains"
+	_ "embed"
+
 	"anarchy.ttfm/8ball/gateway"
 	"anarchy.ttfm/8ball/random"
 	"anarchy.ttfm/8ball/utils"
+	"anarchy.ttfm/8ball/wallets"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 // DataGenerator defines an interface for test data generation.
@@ -19,132 +22,119 @@ type DataGenerator interface {
 	TransferAmount() (funds uint64)
 }
 
+//go:embed tests/succeed.yaml
+var succeedTests []byte
+
 // Test runs a comprehensive suite of tests for any Wallet implementation.
-func Test(t *testing.T, wallet blockchains.Wallet, gen DataGenerator) {
+func Test(t *testing.T, wallet wallets.Wallet, gen DataGenerator) {
 	t.Run("Succeed", func(t *testing.T) {
 		assertions := assert.New(t)
 
-		ctx, cancel := utils.NewContext()
-		defer cancel()
-
-		label1 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		gatewayAddress, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: label1})
-		assertions.Nil(err, "failed to create beneficiary account")
-
-		options := badger.
-			DefaultOptions("").
-			WithInMemory(true)
-		db, err := badger.Open(options)
-		assertions.Nil(err, "failed to open database")
-		var config = gateway.Config{
-			DB:          db,
-			Fee:         10,
-			Timeout:     24 * time.Hour,
-			Beneficiary: gatewayAddress.Address,
-			Wallet:      wallet,
+		type Expect struct {
+			Status gateway.Status `yaml:"status"`
 		}
-		ctrl := gateway.New(config)
-		// t.Logf("Create controller: %+v", ctrl)
-
-		label2 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		businessAddress, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: label2})
-		assertions.Nil(err, "failed to create dst account")
-
-		payment, err := ctrl.Receive(gateway.Receive{
-			Destination: businessAddress.Address, Amount: gen.TransferAmount(), Priority: blockchains.PriorityHigh,
-		})
-		assertions.Nil(err, "failed to create payment")
-		// t.Logf("Create payment: %+v", payment)
-
-		// Query first
-		firstQuery, err := ctrl.Query(payment.Id)
-		assertions.Nil(err, "failed to query first payment")
-
-		assertions.Equal(payment.Id, firstQuery.Id, "Don't equal")
-
-		// Pay the dst
-		clientTransfer, err := wallet.Transfer(ctx, blockchains.TransferRequest{
-			SourceIndex: 0,
-			Destination: payment.Receiver,
-			Amount:      gen.TransferAmount(),
-			Priority:    blockchains.PriorityHigh,
-			UnlockTime:  0,
-		})
-		assertions.Nil(err, "failed to transfer to destination")
-
-		t.Log("[*] Waiting for payment be effective")
-		var paymentEffective bool
-		for try := range 3_600 {
-			t.Log("[*] Try: ", try+1)
-			tx, err := wallet.Transaction(ctx, blockchains.TransactionRequest{TransactionId: clientTransfer.Address})
-			assertions.Nil(err, "failed to retrieve transaction")
-
-			if tx.Status == blockchains.TransactionStatusCompleted {
-				paymentEffective = true
-				break
-			}
-			time.Sleep(time.Second)
-		}
-		assertions.True(paymentEffective, "payment not made effective")
-		t.Log("[+] Transaction made effective")
-
-		// Process
-		t.Log("[*] Processing payments")
-		var paymentProcessed bool
-		for try := range 3_600 {
-			t.Log("[*] Try: ", try+1)
-
-			err = ctrl.Process()
-			assertions.Nil(err, "failed to process payments")
-
-			// Verify payment
-			paymentLatest, err := ctrl.Query(payment.Id)
-			assertions.Nil(err, "failed to query payment")
-
-			contents, _ := json.MarshalIndent(paymentLatest, "", "\t")
-			t.Log(string(contents))
-
-			if paymentLatest.Status == gateway.StatusCompleted {
-				paymentProcessed = true
-				break
-			}
-			time.Sleep(time.Second)
+		type Test struct {
+			Parts         uint64        `yaml:"parts"`
+			FullFillParts uint64        `yaml:"fullfill-parts"`
+			Timeout       time.Duration `yaml:"timeout"`
+			TransferDelay time.Duration `yaml:"transfer-delay"`
+			ProcessDelay  time.Duration `yaml:"process-delay"`
+			Expect        Expect        `yaml:"expect"`
 		}
 
-		assertions.True(paymentProcessed, "payment not processed")
+		var tests []Test
+		err := yaml.Unmarshal(succeedTests, &tests)
+		assertions.Nil(err, "failed to load tests")
 
-		t.Log("[*] Waiting for beneficiary be credited")
-		var beneficiaryPayed bool
-		for try := range 3_600 {
-			t.Log("[*] Try: ", try+1)
-			beneficiaryLatestAddress, err := wallet.
-				Address(ctx, blockchains.AddressRequest{Index: gatewayAddress.Index})
-			assertions.Nil(err, "failed to query beneficiary address")
+		for _, test := range tests {
+			name, _ := json.Marshal(test)
+			t.Run(string(name), func(t *testing.T) {
+				t.Parallel()
+				assertions := assert.New(t)
 
-			if beneficiaryLatestAddress.UnlockedBalance > 0 {
-				beneficiaryPayed = true
-				break
-			}
-			time.Sleep(time.Second)
+				ctx, cancel := utils.NewContext()
+				defer cancel()
+
+				label1 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
+				gatewayAddress, err := wallet.NewAddress(ctx, wallets.NewAddressRequest{Label: label1})
+				assertions.Nil(err, "failed to create beneficiary account")
+
+				options := badger.
+					DefaultOptions("").
+					WithInMemory(true)
+				db, err := badger.Open(options)
+				assertions.Nil(err, "failed to open database")
+				var config = gateway.Config{
+					DB:          db,
+					Timeout:     test.Timeout,
+					Beneficiary: gatewayAddress.Address,
+					Wallet:      wallet,
+				}
+				ctrl := gateway.New(config)
+				// t.Logf("Create controller: %+v", ctrl)
+
+				payment, err := ctrl.Receive(gateway.Receive{
+					Amount:   gen.TransferAmount(),
+					Priority: wallets.PriorityHigh,
+				})
+				assertions.Nil(err, "failed to create payment")
+				// t.Logf("Create payment: %+v", payment)
+
+				// Query first
+				firstQuery, err := ctrl.Query(payment.Id)
+				assertions.Nil(err, "failed to query first payment")
+
+				assertions.Equal(payment.Id, firstQuery.Id, "Don't equal")
+
+				// Pay the dst
+				t.Log("[*] Transfering funds")
+				go func() {
+					for range test.FullFillParts {
+						t.Log("[*] Transfer delay...", test.TransferDelay)
+						time.Sleep(test.TransferDelay)
+						transfer, err := wallet.Transfer(ctx, wallets.TransferRequest{
+							SourceIndex: 0,
+							Destination: payment.Receiver.Address,
+							Amount:      gen.TransferAmount() / test.Parts,
+							Priority:    wallets.PriorityHigh,
+							UnlockTime:  0,
+						})
+						assertions.Nil(err, "failed to transfer to destination")
+
+						cc, _ := json.Marshal(transfer)
+						t.Log("[+] Transfered:", string(cc))
+					}
+				}()
+
+				// Process
+				t.Log("[*] Process delay...", test.ProcessDelay)
+				time.Sleep(test.ProcessDelay)
+				t.Log("[*] Processing payments")
+				var paymentLatest gateway.Payment
+				for try := range 3_600 {
+					t.Log("\t[*] Try processing payments: ", try+1)
+
+					err = ctrl.Process()
+					assertions.Nil(err, "failed to process payments")
+
+					// Verify payment
+					paymentLatest, err = ctrl.Query(payment.Id)
+					assertions.Nil(err, "failed to query payment")
+
+					if paymentLatest.Status != gateway.StatusPending {
+						break
+					}
+					time.Sleep(time.Second)
+				}
+
+				assertions.Equal(test.Expect.Status, paymentLatest.Status, "invalid status")
+
+				if test.Expect.Status == gateway.StatusExpired {
+					t.Log("[*] Early return expired payment doesn't have funds")
+					return
+				}
+
+			})
 		}
-		assertions.True(beneficiaryPayed, "beneficiary not payed")
-		t.Log("[+] Beneficiary payed")
-
-		t.Log("[*] Waiting for bussines be credited")
-		var bussinessPayed bool
-		for try := range 3_600 {
-			t.Log("[*] Try: ", try+1)
-
-			businessLatestAddress, err := wallet.Address(ctx, blockchains.AddressRequest{Index: businessAddress.Index})
-			assertions.Nil(err, "failed to query bussiness addrss")
-
-			if businessLatestAddress.UnlockedBalance > 0 {
-				bussinessPayed = true
-				break
-			}
-			time.Sleep(time.Second)
-		}
-		assertions.True(bussinessPayed, "business not payed")
-		t.Log("[+] Bussiness payed")
 	})
 }

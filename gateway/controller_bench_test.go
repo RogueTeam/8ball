@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"anarchy.ttfm/8ball/blockchains"
-	"anarchy.ttfm/8ball/blockchains/mock"
 	"anarchy.ttfm/8ball/gateway"
 	"anarchy.ttfm/8ball/random"
 	"anarchy.ttfm/8ball/utils"
+	"anarchy.ttfm/8ball/wallets"
+	"anarchy.ttfm/8ball/wallets/mock"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,13 +26,13 @@ func Benchmark_Insertion(b *testing.B) {
 	// --- Setup Phase (Executed once before benchmarking) ---
 
 	// Initialize the mock wallet
-	wallet := mock.New()
+	wallet := mock.New(mock.Config{FundsDelta: 0})
 
 	// Create a beneficiary account for collecting fees
 	// The label is randomized to ensure uniqueness if multiple benchmarks run in parallel,
 	// though for a single benchmark run, a fixed label would also suffice.
 	beneficiaryLabel := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-	beneficiary, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: beneficiaryLabel})
+	beneficiary, err := wallet.NewAddress(ctx, wallets.NewAddressRequest{Label: beneficiaryLabel})
 	assertions.Nil(err, "failed to create beneficiary account")
 
 	// Configure and open an in-memory BadgerDB instance
@@ -49,7 +49,6 @@ func Benchmark_Insertion(b *testing.B) {
 	// Configure the controller with the database, fee, timeout, beneficiary, and wallet
 	var config = gateway.Config{
 		DB:          db,
-		Fee:         1, // A nominal fee for each payment
 		Timeout:     5 * time.Second,
 		Beneficiary: beneficiary.Address,
 		Wallet:      wallet,
@@ -60,8 +59,6 @@ func Benchmark_Insertion(b *testing.B) {
 	// Define the number of payments to create for this benchmark scenario
 	const numPayments = 1_000_000 // million payments
 
-	receiverLabel := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-	receiver, err := wallet.NewAddress(ctx, blockchains.NewAddressRequest{Label: receiverLabel})
 	assertions.Nil(err, "failed to create receiver account")
 
 	b.ResetTimer()
@@ -69,7 +66,10 @@ func Benchmark_Insertion(b *testing.B) {
 	for range b.N {
 		for i := 0; i < numPayments; i++ {
 			// Create the payment intent in the controller.
-			_, err := ctrl.Receive(gateway.Receive{Destination: receiver.Address, Amount: 10_000, Priority: blockchains.PriorityHigh})
+			_, err := ctrl.Receive(gateway.Receive{
+				Amount:   10_000,
+				Priority: wallets.PriorityHigh,
+			})
 			assertions.Nil(err, "failed to create payment")
 		}
 	}

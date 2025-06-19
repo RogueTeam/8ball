@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"anarchy.ttfm/8ball/blockchains"
+	"anarchy.ttfm/8ball/wallets"
 	"github.com/google/uuid"
 )
 
@@ -19,47 +19,56 @@ const (
 	StatusError              Status = "error"
 )
 
-func PendingKey(id uuid.UUID) (key string) {
-	return fmt.Sprintf("/pending/%s", id)
+func PendingKey(id uuid.UUID) (key []byte) {
+	return []byte(fmt.Sprintf("/pending/%s", id))
 }
 
-func PaymentKey(id uuid.UUID) (key string) {
-	return fmt.Sprintf("/payments/%s", id)
+func PaymentKey(id uuid.UUID) (key []byte) {
+	return []byte(fmt.Sprintf("/payments/%s", id))
 }
 
-type Payment struct {
-	// Identifier of the transaction
-	Id uuid.UUID
-	// Status of the payment
-	Status Status
-	// Expiration time of the payment
-	Expiration time.Time
-	// Overall amount to expect from the transaction
-	Amount uint64
-	// Priority of the transaction
-	Priority blockchains.Priority
-	// Fee percentage to discount from the transaction
-	Fee uint64
-	// Address that should receive the funds from the "client"
-	Receiver string
-	// Gateway address for receiving the transaction from the "client"
-	ReceiverIndex uint64
-	// Beneficiary address to forward funds "business"
-	Beneficiary string
-	// Error message
-	Error string
-	// Amount payed to the gateway
-	PayedFee uint64
-	// Confirmation if Fee could be discounted and payed to beneficiary
-	IsFeePayed bool
-	// Fee transaction address. Used for identifying the transaction that payed the fee
-	FeeTransaction string
-	// Amount payed to "business"
-	PayedBeneficiary uint64
-	// Confirmation if destination could receive its money
-	IsBeneficiaryPayed bool
-	// Beneficiary transaction address. Used for identifying the transaction that payed the Beneficiary
-	BeneficiaryTransaction string
+type (
+	Receiver struct {
+		// Address that will receive the funds
+		Address string
+		// Index of the address
+		Index uint64
+	}
+	Beneficiary struct {
+		// Address of the beneficiary during this transaction
+		Address string
+		// Actual amount payed to the Beneficiary
+		Payed uint64
+		// Address of the transactio that was used to pay the beneficiary
+		Transaction string
+	}
+	Payment struct {
+		// Identifier of the transaction
+		Id uuid.UUID
+		// Priority to forward funds to beneficiary
+		Priority wallets.Priority
+		// Status of the payment
+		Status Status
+		// Expiration time of the payment
+		Expiration time.Time
+		// Overall amount to expect from the transaction
+		Amount uint64
+		// The receiver is the address used to receive the payment
+		Receiver Receiver
+		// Beneficiary information. Stored in case wallet changes
+		Beneficiary Beneficiary
+		// Error message
+		Error string
+	}
+)
+
+func (p *Payment) SetError(err error) {
+	if err == nil {
+		return
+	}
+
+	p.Status = StatusError
+	p.Error = err.Error()
 }
 
 func (p *Payment) Bytes() (bytes []byte) {

@@ -6,10 +6,10 @@ import (
 	"os"
 	"testing"
 
-	"anarchy.ttfm/8ball/blockchains/monero"
-	"anarchy.ttfm/8ball/blockchains/testsuite"
 	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
 	"anarchy.ttfm/8ball/utils"
+	"anarchy.ttfm/8ball/wallets/monero"
+	"anarchy.ttfm/8ball/wallets/testsuite"
 	"github.com/gabstv/httpdigest"
 	"github.com/stretchr/testify/assert"
 )

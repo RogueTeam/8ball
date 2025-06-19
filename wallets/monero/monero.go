@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"anarchy.ttfm/8ball/blockchains"
 	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
 	"anarchy.ttfm/8ball/utils"
+	wallets "anarchy.ttfm/8ball/wallets"
 )
 
 type Config struct {
@@ -24,7 +24,7 @@ var (
 	ErrInvalidAddress   = errors.New("invalid address")
 )
 
-var _ blockchains.Wallet = (*Wallet)(nil)
+var _ wallets.Wallet = (*Wallet)(nil)
 
 func (w *Wallet) Sync(ctx context.Context) (err error) {
 	_, err = w.client.Refresh(ctx, &rpc.RefreshRequest{StartHeight: 0})
@@ -51,7 +51,7 @@ func (w *Wallet) validateAddress(ctx context.Context, address string) (err error
 	return nil
 }
 
-func (w *Wallet) NewAddress(ctx context.Context, req blockchains.NewAddressRequest) (account blockchains.Address, err error) {
+func (w *Wallet) NewAddress(ctx context.Context, req wallets.NewAddressRequest) (account wallets.Address, err error) {
 	var createAccount = rpc.CreateAddressRequest{
 		AccountIndex: 0,
 		Label:        req.Label,
@@ -66,7 +66,7 @@ func (w *Wallet) NewAddress(ctx context.Context, req blockchains.NewAddressReque
 		return account, fmt.Errorf("failed to save changes: %w", err)
 	}
 
-	account = blockchains.Address{
+	account = wallets.Address{
 		Address:         a.Address,
 		Index:           a.AddressIndex,
 		Balance:         0,
@@ -75,22 +75,22 @@ func (w *Wallet) NewAddress(ctx context.Context, req blockchains.NewAddressReque
 	return
 }
 
-func convertPriority(p blockchains.Priority) (priority rpc.Priority, err error) {
+func convertPriority(p wallets.Priority) (priority rpc.Priority, err error) {
 	switch p {
 	case "":
 		return rpc.PriorityDefault, nil
-	case blockchains.PriorityLow:
+	case wallets.PriorityLow:
 		return rpc.PriorityUnimportant, nil
-	case blockchains.PriorityMedium:
+	case wallets.PriorityMedium:
 		return rpc.PriorityNormal, nil
-	case blockchains.PriorityHigh:
+	case wallets.PriorityHigh:
 		return rpc.PriorityElevated, nil
 	default:
-		return priority, blockchains.ErrInvalidPriority
+		return priority, wallets.ErrInvalidPriority
 	}
 }
 
-func (w *Wallet) SweepAll(ctx context.Context, req blockchains.SweepRequest) (sweep blockchains.Sweep, err error) {
+func (w *Wallet) SweepAll(ctx context.Context, req wallets.SweepRequest) (sweep wallets.Sweep, err error) {
 	err = w.validateAddress(ctx, req.Destination)
 	if err != nil {
 		return sweep, fmt.Errorf("failed to validate destination address: %w", err)
@@ -125,7 +125,7 @@ func (w *Wallet) SweepAll(ctx context.Context, req blockchains.SweepRequest) (sw
 		return sweep, fmt.Errorf("failed to save changes: %w", err)
 	}
 
-	sweep = blockchains.Sweep{
+	sweep = wallets.Sweep{
 		Address:     res.TxHashList[0],
 		SourceIndex: req.SourceIndex,
 		Destination: req.Destination,
@@ -136,7 +136,7 @@ func (w *Wallet) SweepAll(ctx context.Context, req blockchains.SweepRequest) (sw
 	return
 }
 
-func (w *Wallet) Transfer(ctx context.Context, req blockchains.TransferRequest) (transfer blockchains.Transfer, err error) {
+func (w *Wallet) Transfer(ctx context.Context, req wallets.TransferRequest) (transfer wallets.Transfer, err error) {
 	err = w.validateAddress(ctx, req.Destination)
 	if err != nil {
 		return transfer, fmt.Errorf("failed to validate destination address: %w: %s", err, req.Destination)
@@ -171,7 +171,7 @@ func (w *Wallet) Transfer(ctx context.Context, req blockchains.TransferRequest) 
 		return transfer, fmt.Errorf("failed to save changes: %w", err)
 	}
 
-	transfer = blockchains.Transfer{
+	transfer = wallets.Transfer{
 		Address:     res.TxHash,
 		SourceIndex: req.SourceIndex,
 		Destination: req.Destination,
@@ -182,7 +182,7 @@ func (w *Wallet) Transfer(ctx context.Context, req blockchains.TransferRequest) 
 	return
 }
 
-func (w *Wallet) Address(ctx context.Context, req blockchains.AddressRequest) (account blockchains.Address, err error) {
+func (w *Wallet) Address(ctx context.Context, req wallets.AddressRequest) (account wallets.Address, err error) {
 	accountBalance, err := w.client.GetBalance(ctx, &rpc.GetBalanceRequest{
 		AccountIndex:   0,
 		AddressIndices: []uint64{req.Index},
@@ -191,7 +191,7 @@ func (w *Wallet) Address(ctx context.Context, req blockchains.AddressRequest) (a
 		return account, fmt.Errorf("failed to get account balance: %w", err)
 	}
 
-	account = blockchains.Address{
+	account = wallets.Address{
 		Address:         accountBalance.PerSubaddress[0].Address,
 		Index:           req.Index,
 		Balance:         accountBalance.PerSubaddress[0].Balance,
@@ -200,19 +200,19 @@ func (w *Wallet) Address(ctx context.Context, req blockchains.AddressRequest) (a
 	return
 }
 
-func (w *Wallet) ValidateAddress(ctx context.Context, req blockchains.ValidateAddressRequest) (valid blockchains.ValidateAddress, err error) {
+func (w *Wallet) ValidateAddress(ctx context.Context, req wallets.ValidateAddressRequest) (valid wallets.ValidateAddress, err error) {
 	err = w.validateAddress(ctx, req.Address)
 	if err != nil {
 		return valid, fmt.Errorf("failed to validate address: %w", err)
 	}
 
-	valid = blockchains.ValidateAddress{
+	valid = wallets.ValidateAddress{
 		Valid: true,
 	}
 	return
 }
 
-func (w *Wallet) Transaction(ctx context.Context, req blockchains.TransactionRequest) (tx blockchains.Transaction, err error) {
+func (w *Wallet) Transaction(ctx context.Context, req wallets.TransactionRequest) (tx wallets.Transaction, err error) {
 	var getTransfer = rpc.GetTransferByTxidRequest{
 		AccountIndex: 0,
 		Txid:         req.TransactionId,
@@ -224,18 +224,18 @@ func (w *Wallet) Transaction(ctx context.Context, req blockchains.TransactionReq
 	}
 
 	transfer := transaction.Transfer
-	tx = blockchains.Transaction{
+	tx = wallets.Transaction{
 		Address: transfer.Address,
 		Amount:  transfer.Amount,
 	}
 
 	switch transfer.Type {
 	case "pending", "pool":
-		tx.Status = blockchains.TransactionStatusPending
+		tx.Status = wallets.TransactionStatusPending
 	case "out":
-		tx.Status = blockchains.TransactionStatusCompleted
+		tx.Status = wallets.TransactionStatusCompleted
 	case "failed":
-		tx.Status = blockchains.TransactionStatusFailed
+		tx.Status = wallets.TransactionStatusFailed
 	default:
 		return tx, errors.New("unsupported tx type")
 	}

@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"anarchy.ttfm/8ball/blockchains"
 	"anarchy.ttfm/8ball/random"
 	"anarchy.ttfm/8ball/utils"
+	wallets "anarchy.ttfm/8ball/wallets"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +17,7 @@ type DataGenerator interface {
 }
 
 // Test runs a comprehensive suite of tests for any Wallet implementation.
-func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
+func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 
 	t.Run("Initial Address 0 State", func(t *testing.T) {
 		t.Parallel()
@@ -28,7 +28,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 		defer cancel()
 
 		// Verify Address 0 exists and has zero balance initially
-		address0, err := w.Address(ctx, blockchains.AddressRequest{Index: 0})
+		address0, err := w.Address(ctx, wallets.AddressRequest{Index: 0})
 		assertions.Nil(err, "failed to retrieve initial address 0 balance")
 		assertions.Equal(uint64(0), address0.Index, "Address 0 should have index 0")
 
@@ -44,7 +44,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 		defer cancel()
 
 		label := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		address, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: label})
+		address, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: label})
 		assertions.Nil(err, "failed to create new address")
 		assertions.NotNil(address.Address, "new address should have an address")
 		assertions.Greater(address.Index, uint64(0), "new address index should be greater than 0")
@@ -54,14 +54,14 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 		t.Logf("Created new address: %+v", address)
 
 		// Verify the new address can be retrieved
-		retrievedAddress, err := w.Address(ctx, blockchains.AddressRequest{Index: address.Index})
+		retrievedAddress, err := w.Address(ctx, wallets.AddressRequest{Index: address.Index})
 		assertions.Nil(err, "failed to get newly created address")
 		assertions.Equal(address, retrievedAddress, "retrieved address should match created address")
 		t.Logf("Retrieved new address: %+v", retrievedAddress)
 
 		// Test creating another address to check index increment
 		label2 := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		address2, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: label2})
+		address2, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: label2})
 		assertions.Nil(err, "failed to create second new address")
 		assertions.Less(address.Index, address2.Index, "second address index should be incremented")
 	})
@@ -75,11 +75,11 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 		defer cancel()
 
 		label := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-		address, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: label})
+		address, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: label})
 		assertions.Nil(err, "failed to create new address")
 
 		// Test with a valid address
-		validRes, err := w.ValidateAddress(ctx, blockchains.ValidateAddressRequest{Address: address.Address})
+		validRes, err := w.ValidateAddress(ctx, wallets.ValidateAddressRequest{Address: address.Address})
 		assertions.Nil(err, "failed to validate address")
 		assertions.True(validRes.Valid, "wallet should validate any address as true")
 	})
@@ -95,18 +95,18 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
 
-			currentAddress0, err := w.Address(ctx, blockchains.AddressRequest{Index: 0})
+			currentAddress0, err := w.Address(ctx, wallets.AddressRequest{Index: 0})
 			assertions.Nil(err, "failed to get current address 0 balance")
 			t.Logf("Address 0 balance before transfers: Balance:%d ; UnlockedBalance:%d", currentAddress0.Balance, currentAddress0.UnlockedBalance)
 
-			dst, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
+			dst, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
 			assertions.Nil(err, "failed to create new address for internal transfer")
 
-			transfer, err := w.Transfer(ctx, blockchains.TransferRequest{
+			transfer, err := w.Transfer(ctx, wallets.TransferRequest{
 				SourceIndex: 0,
 				Destination: dst.Address,
 				Amount:      gen.TransferAmount(),
-				Priority:    blockchains.PriorityHigh,
+				Priority:    wallets.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.Nil(err, "failed to transfer funds to internal address")
@@ -116,7 +116,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			t.Logf("Transfer to internal address: %+v", transfer)
 
 			// Verify balances after internal transfer
-			address0After, err := w.Address(ctx, blockchains.AddressRequest{Index: 0})
+			address0After, err := w.Address(ctx, wallets.AddressRequest{Index: 0})
 			assertions.Nil(err, "failed to get address 0 balance after internal transfer")
 			assertions.Less(address0After.Balance, currentAddress0.Balance, "Address 0 balance should be reduced by transfer amount")
 
@@ -129,10 +129,10 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 
 				t.Log("[*] Checking Transaction: Attempt ", try+1)
 
-				tx, err := w.Transaction(ctx, blockchains.TransactionRequest{TransactionId: transfer.Address})
+				tx, err := w.Transaction(ctx, wallets.TransactionRequest{TransactionId: transfer.Address})
 				assertions.Nil(err, "failed to get destination address balance after internal transfer")
 
-				if tx.Status == blockchains.TransactionStatusCompleted {
+				if tx.Status == wallets.TransactionStatusCompleted {
 					found = true
 					break
 				}
@@ -150,21 +150,21 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
 
-			currentAddress0, err := w.Address(ctx, blockchains.AddressRequest{Index: 0})
+			currentAddress0, err := w.Address(ctx, wallets.AddressRequest{Index: 0})
 			assertions.Nil(err, "failed to get current address 0 balance")
 			t.Logf("Address 0 balance before transfers: %d", currentAddress0.Balance)
 
-			dst, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
+			dst, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
 			assertions.Nil(err, "failed to create new address for internal transfer")
 
 			// Attempt to transfer more than available in Address 0
 			insufficientAmount := currentAddress0.Balance + 1000 // More than current balance
 
-			_, err = w.Transfer(ctx, blockchains.TransferRequest{
+			_, err = w.Transfer(ctx, wallets.TransferRequest{
 				SourceIndex: 0,
 				Destination: dst.Address,
 				Amount:      insufficientAmount,
-				Priority:    blockchains.PriorityHigh,
+				Priority:    wallets.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.NotNil(err, "transfer should fail due to insufficient funds")
@@ -180,18 +180,18 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
 
-			currentAddress0, err := w.Address(ctx, blockchains.AddressRequest{Index: 0})
+			currentAddress0, err := w.Address(ctx, wallets.AddressRequest{Index: 0})
 			assertions.Nil(err, "failed to get current address 0 balance")
 			t.Logf("Address 0 balance before transfers: %d", currentAddress0.Balance)
 
-			dst, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
+			dst, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
 			assertions.Nil(err, "failed to create new address for internal transfer")
 
-			_, err = w.Transfer(ctx, blockchains.TransferRequest{
+			_, err = w.Transfer(ctx, wallets.TransferRequest{
 				SourceIndex: 0,
 				Destination: dst.Address,
 				Amount:      0, // Zero amount
-				Priority:    blockchains.PriorityHigh,
+				Priority:    wallets.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.NotNil(err, "transfer should fail for zero amount")
@@ -206,14 +206,14 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
 
-			dst, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
+			dst, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
 			assertions.Nil(err, "failed to create new address for internal transfer")
 
-			_, err = w.Transfer(ctx, blockchains.TransferRequest{
+			_, err = w.Transfer(ctx, wallets.TransferRequest{
 				SourceIndex: ^uint64(0),
 				Destination: dst.Address,
 				Amount:      gen.TransferAmount(),
-				Priority:    blockchains.PriorityHigh,
+				Priority:    wallets.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.NotNil(err, "transfer from non-existent address should fail")
@@ -234,17 +234,17 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 
 			sourceLabel := "sweep_source" + random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
 			// Create a new address and fund it specifically for this sweep test
-			sweepSourceAddr, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: sourceLabel})
+			sweepSourceAddr, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: sourceLabel})
 			if !assertions.Nil(err, "failed to create sweep source address") {
 				return
 			}
 
 			// Transfer to Source address
-			firstTransfer, err := w.Transfer(ctx, blockchains.TransferRequest{
+			firstTransfer, err := w.Transfer(ctx, wallets.TransferRequest{
 				SourceIndex: 0,
 				Destination: sweepSourceAddr.Address,
 				Amount:      gen.TransferAmount(),
-				Priority:    blockchains.PriorityHigh,
+				Priority:    wallets.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.Nil(err, "failed to transfer testing amount")
@@ -258,10 +258,10 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 				t.Log("[*] Synced")
 
 				t.Log("[*] Checking Transaction: Attempt ", try+1)
-				tx, err := w.Transaction(ctx, blockchains.TransactionRequest{TransactionId: firstTransfer.Address})
+				tx, err := w.Transaction(ctx, wallets.TransactionRequest{TransactionId: firstTransfer.Address})
 				assertions.Nil(err, "failed to get destination address balance after internal transfer")
 
-				if tx.Status == blockchains.TransactionStatusCompleted {
+				if tx.Status == wallets.TransactionStatusCompleted {
 					validSourceAddressBalance = true
 					break
 				}
@@ -277,12 +277,12 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			t.Log("[*] Synced")
 
 			dstLabel := "sweep_destination" + random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
-			sweepDstAddr, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: dstLabel})
+			sweepDstAddr, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: dstLabel})
 			assertions.Nil(err, "failed to create sweep destination address")
 
 			// Sweep the entire source to dst
 			var sweepSucceed bool
-			var sweep blockchains.Sweep
+			var sweep wallets.Sweep
 
 			t.Log("[*] Waiting for successful sweep")
 			for range 3_600 {
@@ -291,7 +291,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 				assertions.Nil(err, "failed to sync")
 				t.Log("[*] Synced")
 
-				sourceAddrLast, err := w.Address(ctx, blockchains.AddressRequest{Index: sweepSourceAddr.Index})
+				sourceAddrLast, err := w.Address(ctx, wallets.AddressRequest{Index: sweepSourceAddr.Index})
 				assertions.Nil(err, "failed to retrieve source address")
 				t.Log("[*] Balance:", sourceAddrLast.Balance)
 				t.Log("[*] Unlocked Balance:", sourceAddrLast.UnlockedBalance)
@@ -301,10 +301,10 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 					continue
 				}
 				t.Log("[*] Sweep Attempt ")
-				sweep, err = w.SweepAll(ctx, blockchains.SweepRequest{
+				sweep, err = w.SweepAll(ctx, wallets.SweepRequest{
 					SourceIndex: sweepSourceAddr.Index,
 					Destination: sweepDstAddr.Address,
-					Priority:    blockchains.PriorityHigh,
+					Priority:    wallets.PriorityHigh,
 					UnlockTime:  0,
 				})
 				sweepSucceed = assertions.Nil(err, "failed to sweep funds")
@@ -324,7 +324,7 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			t.Logf("Successful sweep: %+v", sweep)
 
 			// Verify balances after sweep
-			sourceAddrAfter, err := w.Address(ctx, blockchains.AddressRequest{Index: sweepSourceAddr.Index})
+			sourceAddrAfter, err := w.Address(ctx, wallets.AddressRequest{Index: sweepSourceAddr.Index})
 			assertions.Nil(err, "failed to get source address balance after sweep")
 			assertions.Equal(uint64(0), sourceAddrAfter.Balance, "source address balance should be zero after sweep")
 			assertions.Equal(uint64(0), sourceAddrAfter.UnlockedBalance, "source address unlocked balance should be zero after sweep")
@@ -333,10 +333,10 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			for try := range 3_600 {
 				t.Log("[*] Checking Transaction: Attempt ", try+1)
 
-				tx, err := w.Transaction(ctx, blockchains.TransactionRequest{TransactionId: sweep.Address})
+				tx, err := w.Transaction(ctx, wallets.TransactionRequest{TransactionId: sweep.Address})
 				assertions.Nil(err, "failed to get destination address balance after internal transfer")
 
-				if tx.Status == blockchains.TransactionStatusCompleted {
+				if tx.Status == wallets.TransactionStatusCompleted {
 					dstAddressBalanceValid = true
 					break
 				}
@@ -355,16 +355,16 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			defer cancel()
 
 			// Create a new address with zero balance
-			emptyAddr, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: "empty_address"})
+			emptyAddr, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: "empty_address"})
 			assertions.Nil(err, "failed to create empty address")
 
-			sweepDstAddr, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: "sweep_destination"})
+			sweepDstAddr, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: "sweep_destination"})
 			assertions.Nil(err, "failed to create sweep destination address")
 
-			_, err = w.SweepAll(ctx, blockchains.SweepRequest{
+			_, err = w.SweepAll(ctx, wallets.SweepRequest{
 				SourceIndex: emptyAddr.Index,
 				Destination: sweepDstAddr.Address,
-				Priority:    blockchains.PriorityHigh,
+				Priority:    wallets.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.NotNil(err, "sweeping an empty address should fail")
@@ -379,13 +379,13 @@ func Test(t *testing.T, w blockchains.Wallet, gen DataGenerator) {
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
 
-			sweepDstAddr, err := w.NewAddress(ctx, blockchains.NewAddressRequest{Label: "sweep_destination"})
+			sweepDstAddr, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: "sweep_destination"})
 			assertions.Nil(err, "failed to create sweep destination address")
 
-			_, err = w.SweepAll(ctx, blockchains.SweepRequest{
+			_, err = w.SweepAll(ctx, wallets.SweepRequest{
 				SourceIndex: ^uint64(0),
 				Destination: sweepDstAddr.Address,
-				Priority:    blockchains.PriorityHigh,
+				Priority:    wallets.PriorityHigh,
 				UnlockTime:  0,
 			})
 			assertions.NotNil(err, "sweep from non-existent address should fail")

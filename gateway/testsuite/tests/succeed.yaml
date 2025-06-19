@@ -1,0 +1,56 @@
+- parts: 1
+  fullfill-parts: 1
+  timeout: 24h0m0s
+  transfer-delay: 0s
+  process-delay: 0s
+  expect:
+    status: completed
+- parts: 1
+  fullfill-parts: 1
+  timeout: 10s
+  transfer-delay: 0s
+  process-delay: 20s
+  expect:
+    status: completed
+- parts: 2
+  fullfill-parts: 2
+  timeout: 24h0m0s
+  transfer-delay: 0s
+  process-delay: 0s
+  expect:
+    status: completed
+- parts: 2
+  fullfill-parts: 2
+  timeout: 10s
+  transfer-delay: 0s
+  process-delay: 20s
+  expect:
+    status: completed
+- parts: 10
+  fullfill-parts: 10
+  timeout: 30s
+  transfer-delay: 1s
+  process-delay: 5s
+  expect:
+    status: completed
+- parts: 10
+  fullfill-parts: 3
+  timeout: 10s
+  transfer-delay: 1s
+  process-delay: 5s
+  expect:
+    status: partially-completed
+- parts: 10
+  fullfill-parts: 3
+  timeout: 10s
+  transfer-delay: 1s
+  process-delay: 1s
+  expect:
+    status: partially-completed
+- parts: 0
+  fullfill-parts: 0
+  timeout: 0s
+  transfer-delay: 0s
+  process-delay: 2s
+  expect:
+    status: expired
