@@ -1,4 +1,4 @@
-package monero_test
+package gateway_test
 
 import (
 	"encoding/json"
@@ -6,11 +6,14 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
+	"anarchy.ttfm/8ball/gateway/testsuite"
 	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
 	"anarchy.ttfm/8ball/utils"
+	"anarchy.ttfm/8ball/wallets/mock"
 	"anarchy.ttfm/8ball/wallets/monero"
-	"anarchy.ttfm/8ball/wallets/testsuite"
+	testsuite2 "anarchy.ttfm/8ball/wallets/testsuite"
 	"github.com/gabstv/httpdigest"
 	"github.com/stretchr/testify/assert"
 )
@@ -31,7 +34,7 @@ func init() {
 	}
 }
 
-func newClient(t *testing.T) (client *rpc.Client) {
+func newMoneroClient(t *testing.T) (client *rpc.Client) {
 	assertions := assert.New(t)
 
 	var config = rpc.Config{
@@ -47,11 +50,31 @@ func newClient(t *testing.T) (client *rpc.Client) {
 	return client
 }
 
-func Test_Monero(t *testing.T) {
-	t.Run("Succeed", func(t *testing.T) {
+func Test_Integration(t *testing.T) {
+	t.Parallel()
+	t.Run("Mock", func(t *testing.T) {
+		t.Parallel()
+
+		var configs = []mock.Config{
+			{FundsDelta: 5 * time.Second},
+			// {FundsDelta: 5 * time.Second, ZeroOnTransfer: true},
+		}
+		for _, config := range configs {
+			cc, _ := json.Marshal(config)
+			t.Run(string(cc), func(t *testing.T) {
+				t.Parallel()
+
+				w := mock.New(config)
+				testsuite.Test(t, 1, w, &testsuite2.MockGenerator{})
+			})
+		}
+	})
+	t.Run("Monero", func(t *testing.T) {
+		t.Parallel()
+
 		assertions := assert.New(t)
 
-		client := newClient(t)
+		client := newMoneroClient(t)
 
 		ctx, cancel := utils.NewContext()
 		defer cancel()
@@ -61,19 +84,11 @@ func Test_Monero(t *testing.T) {
 		})
 		assertions.Nil(err, "failed to open wallet")
 
-		var configs = []monero.Config{
-			{Client: client, Accounts: false},
-			{Client: client, Accounts: true},
+		var config = monero.Config{
+			Accounts: true,
+			Client:   client,
 		}
-		for _, config := range configs {
-			cc, _ := json.Marshal(config)
-			t.Run(string(cc), func(t *testing.T) {
-				t.Parallel()
-
-				wallet := monero.New(config)
-
-				testsuite.Test(t, wallet, &testsuite.MoneroGenerator{})
-			})
-		}
+		wallet := monero.New(config)
+		testsuite.Test(t, 5*time.Minute, wallet, &testsuite2.MoneroGenerator{})
 	})
 }

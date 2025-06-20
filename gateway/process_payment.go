@@ -1,4 +1,4 @@
-package payments
+package gateway
 
 import (
 	"encoding/json"
@@ -44,15 +44,16 @@ func (c *Controller) processPayment(p Payment) (err error) {
 	// - If it is live. Funds are complete
 	// - If expired it may have incomplete funds
 	if address.UnlockedBalance > 0 {
-		sweep, err := c.wallet.SweepAll(ctx, wallets.SweepRequest{
+		transfer, err := c.wallet.Transfer(ctx, wallets.TransferRequest{
 			SourceIndex: p.Receiver.Index,
 			Destination: p.Beneficiary.Address,
+			Amount:      address.UnlockedBalance - calculateFee(address.UnlockedBalance, p.Fee.Percentage),
 			Priority:    p.Priority,
 			UnlockTime:  0,
 		})
 		if err != nil {
-			err = fmt.Errorf("failed to sweep funds: %w", err)
-			p.SetError(err)
+			err = fmt.Errorf("failed to transfer funds: %w", err)
+			p.Beneficiary.SetError(err)
 
 			err = c.savePaymentState(p)
 			if err != nil {
@@ -61,23 +62,28 @@ func (c *Controller) processPayment(p Payment) (err error) {
 			return err
 		}
 
-		p.Beneficiary.Payed = sweep.Amount
-		p.Beneficiary.Transaction = sweep.Address
+		p.Beneficiary.Payed = transfer.Amount
+		p.Beneficiary.Transaction = transfer.Address
 
 		if address.UnlockedBalance >= p.Amount {
-			p.Status = StatusCompleted
+			p.Beneficiary.Status = StatusCompleted
 		} else {
-			p.Status = StatusPartiallyCompleted
+			p.Beneficiary.Status = StatusPartiallyCompleted
+		}
+		err = c.savePendingFee(p)
+		if err != nil {
+			return fmt.Errorf("failed to save pending fee: %w", err)
 		}
 	} else {
-		p.Status = StatusExpired
+		p.Beneficiary.Status = StatusExpired
+		p.Fee.Status = StatusExpired
 	}
 
 	err = c.savePaymentState(p)
 	if err != nil {
 		return fmt.Errorf("failed to set save payment: %w", err)
 	}
-	err = c.deletePendingPayment(p)
+	err = c.deleteKey(PendingKey(p.Id))
 	if err != nil {
 		return fmt.Errorf("failed to delete pending payment entry: %w", err)
 	}
@@ -86,9 +92,9 @@ func (c *Controller) processPayment(p Payment) (err error) {
 
 const MaxConcurrentJobs = 1_000
 
-// Process is a function that goes over all pending payments and checks if the payment was executed
-func (c *Controller) Process() (err error) {
-	payments, errChan := c.streamPendingPayments()
+// ProcessPendingPayments is a function that goes over all pending payments and checks if the payment was executed
+func (c *Controller) ProcessPendingPayments() (err error) {
+	payments, errChan := c.streamPayments(pendingPrefixBytes)
 	defer utils.ConsumeChannel(payments)
 	defer utils.ConsumeChannel(errChan)
 

@@ -1,4 +1,4 @@
-package payments
+package gateway
 
 import (
 	"fmt"
@@ -8,9 +8,13 @@ import (
 	"github.com/google/uuid"
 )
 
+func calculateFee(amount, feePercentage uint64) (fee uint64) {
+	return (amount * feePercentage) / 100
+}
+
 // Streams pending payments into a channel. Its intended be used in parallel while querying wallets
 // payments channel should must be consumed at all
-func (c *Controller) streamPendingPayments() (payments chan Payment, err chan error) {
+func (c *Controller) streamPayments(prefix []byte) (payments chan Payment, err chan error) {
 	payments = make(chan Payment, 1_000)
 	err = make(chan error, 1)
 	go func() {
@@ -19,11 +23,11 @@ func (c *Controller) streamPendingPayments() (payments chan Payment, err chan er
 
 		err <- c.db.View(func(txn *badger.Txn) (err error) {
 			options := badger.DefaultIteratorOptions
-			options.Prefix = pendingPrefixBytes
+			options.Prefix = prefix
 			it := txn.NewIterator(options)
 			defer it.Close()
 
-			for it.Rewind(); it.ValidForPrefix(pendingPrefixBytes); it.Next() {
+			for it.Rewind(); it.ValidForPrefix(prefix); it.Next() {
 				var payment Payment
 
 				pendingItem := it.Item()

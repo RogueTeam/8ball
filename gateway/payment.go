@@ -1,4 +1,4 @@
-package payments
+package gateway
 
 import (
 	"encoding/json"
@@ -19,11 +19,19 @@ const (
 )
 
 const (
+	feePrefix      = "/fee/"
 	pendingPrefix  = "/pending/"
 	paymentsPrefix = "/payment/"
 )
 
-var pendingPrefixBytes = []byte(pendingPrefix)
+var (
+	pendingPrefixBytes = []byte(pendingPrefix)
+	feePrefixBytes     = []byte(feePrefix)
+)
+
+func FeeKey(id uuid.UUID) (key []byte) {
+	return []byte(feePrefix + id.String())
+}
 
 func PendingKey(id uuid.UUID) (key []byte) {
 	return []byte(pendingPrefix + id.String())
@@ -41,6 +49,10 @@ type (
 		Index uint64
 	}
 	Beneficiary struct {
+		// Status of the payment
+		Status Status
+		// Error message
+		Error string
 		// Address of the beneficiary during this transaction
 		Address string
 		// Actual amount payed to the Beneficiary
@@ -48,33 +60,54 @@ type (
 		// Address of the transactio that was used to pay the beneficiary
 		Transaction string
 	}
+	Fee struct {
+		// Status of the payment
+		Status Status
+		// Error message
+		Error string
+		// Percentage to be payed
+		Percentage uint64
+		// Address of the account that will the fee profit
+		Address string
+		// Actual amount payed to the account
+		Payed uint64
+		// Transaction that was used to pay the fee
+		Transaction string
+	}
 	Payment struct {
 		// Identifier of the transaction
 		Id uuid.UUID
 		// Priority to forward funds to beneficiary
 		Priority wallets.Priority
-		// Status of the payment
-		Status Status
-		// Expiration time of the payment
-		Expiration time.Time
 		// Overall amount to expect from the transaction
 		Amount uint64
+		// Expiration time of the payment
+		Expiration time.Time
 		// The receiver is the address used to receive the payment
 		Receiver Receiver
+		// Fee details
+		Fee Fee
 		// Beneficiary information. Stored in case wallet changes
 		Beneficiary Beneficiary
-		// Error message
-		Error string
 	}
 )
 
-func (p *Payment) SetError(err error) {
+func (b *Beneficiary) SetError(err error) {
 	if err == nil {
 		return
 	}
 
-	p.Status = StatusError
-	p.Error = err.Error()
+	b.Status = StatusError
+	b.Error = err.Error()
+}
+
+func (f *Fee) SetError(err error) {
+	if err == nil {
+		return
+	}
+
+	f.Status = StatusError
+	f.Error = err.Error()
 }
 
 func (p *Payment) Bytes() (bytes []byte) {
