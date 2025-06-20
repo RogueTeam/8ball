@@ -1,4 +1,4 @@
-package gateway_test
+package payments_test
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"anarchy.ttfm/8ball/gateway/testsuite"
+	"anarchy.ttfm/8ball/payments/testsuite"
 	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
 	"anarchy.ttfm/8ball/utils"
 	"anarchy.ttfm/8ball/wallets/mock"

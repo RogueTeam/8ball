@@ -1,10 +1,10 @@
-package gateway_test
+package payments_test
 
 import (
 	"testing"
 	"time"
 
-	"anarchy.ttfm/8ball/gateway"
+	"anarchy.ttfm/8ball/payments"
 	"anarchy.ttfm/8ball/random"
 	"anarchy.ttfm/8ball/utils"
 	"anarchy.ttfm/8ball/wallets"
@@ -47,14 +47,14 @@ func Benchmark_Insertion(b *testing.B) {
 	defer db.Close()
 
 	// Configure the controller with the database, fee, timeout, beneficiary, and wallet
-	var config = gateway.Config{
+	var config = payments.Config{
 		DB:          db,
 		Timeout:     5 * time.Second,
 		Beneficiary: beneficiary.Address,
 		Wallet:      wallet,
 	}
 	// Create the controller instance
-	ctrl := gateway.New(config)
+	ctrl := payments.New(config)
 
 	// Define the number of payments to create for this benchmark scenario
 	const numPayments = 1_000_000 // million payments
@@ -66,7 +66,7 @@ func Benchmark_Insertion(b *testing.B) {
 	for range b.N {
 		for i := 0; i < numPayments; i++ {
 			// Create the payment intent in the controller.
-			_, err := ctrl.Receive(gateway.Receive{
+			_, err := ctrl.Receive(payments.Receive{
 				Amount:   10_000,
 				Priority: wallets.PriorityHigh,
 			})

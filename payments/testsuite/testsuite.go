@@ -7,7 +7,7 @@ import (
 
 	_ "embed"
 
-	"anarchy.ttfm/8ball/gateway"
+	"anarchy.ttfm/8ball/payments"
 	"anarchy.ttfm/8ball/random"
 	"anarchy.ttfm/8ball/utils"
 	"anarchy.ttfm/8ball/wallets"
@@ -31,7 +31,7 @@ func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen D
 		assertions := assert.New(t)
 
 		type Expect struct {
-			Status gateway.Status `yaml:"status"`
+			Status payments.Status `yaml:"status"`
 		}
 		type Test struct {
 			Parts         uint64        `yaml:"parts"`
@@ -64,16 +64,16 @@ func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen D
 					WithInMemory(true)
 				db, err := badger.Open(options)
 				assertions.Nil(err, "failed to open database")
-				var config = gateway.Config{
+				var config = payments.Config{
 					DB:          db,
 					Timeout:     timeoutExtra + test.Timeout,
 					Beneficiary: gatewayAddress.Address,
 					Wallet:      wallet,
 				}
-				ctrl := gateway.New(config)
+				ctrl := payments.New(config)
 				// t.Logf("Create controller: %+v", ctrl)
 
-				payment, err := ctrl.Receive(gateway.Receive{
+				payment, err := ctrl.Receive(payments.Receive{
 					Amount:   gen.TransferAmount(),
 					Priority: wallets.PriorityHigh,
 				})
@@ -110,7 +110,7 @@ func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen D
 				t.Log("[*] Process delay...", test.ProcessDelay)
 				time.Sleep(test.ProcessDelay)
 				t.Log("[*] Processing payments")
-				var paymentLatest gateway.Payment
+				var paymentLatest payments.Payment
 				for try := range 3_600 {
 					t.Log("\t[*] Try processing payments: ", try+1)
 
@@ -121,7 +121,7 @@ func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen D
 					paymentLatest, err = ctrl.Query(payment.Id)
 					assertions.Nil(err, "failed to query payment")
 
-					if paymentLatest.Status != gateway.StatusPending {
+					if paymentLatest.Status != payments.StatusPending {
 						break
 					}
 					time.Sleep(time.Second)
@@ -129,7 +129,7 @@ func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen D
 
 				assertions.Equal(test.Expect.Status, paymentLatest.Status, "invalid status")
 
-				if test.Expect.Status == gateway.StatusExpired {
+				if test.Expect.Status == payments.StatusExpired {
 					t.Log("[*] Early return expired payment doesn't have funds")
 					return
 				}
