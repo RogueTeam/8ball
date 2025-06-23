@@ -7,24 +7,32 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
-func main() {
-	// Define command-line flags.
-	// Default values are empty strings, meaning if the flag isn't provided,
-	// monerod will use its own internal defaults for data directory and network.
-	dataDirFlag := flag.String("data-dir", "", "Directory for Monero blockchain data (defaults to monerod's default if not specified)")
-	networkFlag := flag.String("network", "", "Monero network to use (mainnet, testnet, stagenet). Defaults to mainnet if not specified.")
+var config struct {
+	dataDir       string
+	network       string
+	miningAddress string
+}
 
-	flag.Parse() // Parse the command-line flags
+const monerod = "monerod"
 
-	// Define the path to the monerod executable.
-	// It's assumed to be in your system's PATH. If not, replace "monerod"
-	// with the full path, e.g., "/usr/local/bin/monerod" or "C:\\Monero\\monerod.exe"
-	monerodPath := "monerod"
+func init() {
+	flagset := flag.NewFlagSet("monerod", flag.ExitOnError)
 
-	// Define the base arguments for the monerod command.
-	args := []string{
+	flagset.StringVar(&config.dataDir, "data-dir", "", "Directory for Monero blockchain data (defaults to monerod's default if not specified)")
+	flagset.StringVar(&config.network, "network", "", "Monero network to use (mainnet, testnet, stagenet). Defaults to mainnet if not specified.")
+	flagset.StringVar(&config.miningAddress, "mining-address", "", "Address for mining.")
+
+	err := flagset.Parse(os.Args[1:])
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func prepareArgs() (args []string) {
+	args = []string{
 		// "--prune-blockchain",
 		"--proxy", "127.0.0.1:9050",
 		"--tx-proxy", "tor,127.0.0.1:9050,10",
@@ -35,13 +43,12 @@ func main() {
 		"--log-level", "0",
 	}
 
-	// Conditionally add --data-dir if the flag was provided
 	var actualDataDir string
-	if *dataDirFlag != "" {
+	if config.dataDir != "" {
 		// Resolve the absolute path for the data directory if provided
-		resolvedDataDir, err := filepath.Abs(*dataDirFlag)
+		resolvedDataDir, err := filepath.Abs(config.dataDir)
 		if err != nil {
-			log.Fatalf("Error resolving absolute path for data directory %s: %v", *dataDirFlag, err)
+			log.Fatalf("Error resolving absolute path for data directory %s: %v", config.dataDir, err)
 		}
 		actualDataDir = resolvedDataDir
 		// Ensure the specified data directory exists
@@ -61,9 +68,14 @@ func main() {
 		}
 	}
 
+	if config.miningAddress != "" {
+		log.Println("Mining to address", config.miningAddress)
+		args = append(args, "--start-mining", config.miningAddress)
+	}
+
 	// Conditionally add network-specific arguments based on the --network flag
 	var actualNetwork string
-	switch *networkFlag {
+	switch config.network {
 	case "mainnet", "": // If --network is "mainnet" or not provided, monerod uses mainnet by default
 		actualNetwork = "mainnet"
 		// No additional argument needed for mainnet
@@ -74,28 +86,26 @@ func main() {
 		actualNetwork = "stagenet"
 		args = append(args, "--stagenet")
 	default:
-		log.Fatalf("Invalid network specified: %s. Use 'mainnet', 'testnet', or 'stagenet'.", *networkFlag)
+		log.Fatalf("Invalid network specified: %s. Use 'mainnet', 'testnet', or 'stagenet'.", config.network)
 	}
 
 	fmt.Printf("Starting monerod on %s network.\n", actualNetwork)
-	if *dataDirFlag != "" {
+	if config.dataDir != "" {
 		fmt.Printf("Using specified data directory: %s\n", actualDataDir)
 	} else {
 		fmt.Printf("Using monerod's default data directory (usually %s).\n", actualDataDir)
 	}
-	fmt.Printf("Full command: %s %v\n", monerodPath, args)
+	fmt.Printf("Full command: %s %v\n", monerod, strings.Join(args, " "))
+	return args
+}
 
-	// Create a new command.
-	cmd := exec.Command(monerodPath, args...)
+func main() {
+	cmd := exec.Command(monerod, prepareArgs()...)
 
-	// Redirect standard output and standard error of the monerod process
-	// to the standard output and standard error of this Go program.
-	// This allows you to see monerod's logs in your Go program's console.
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
-	// Start the command in a new process.
 	err := cmd.Start()
 	if err != nil {
 		log.Fatalf("Failed to start monerod: %v", err)
@@ -106,7 +116,6 @@ func main() {
 	fmt.Println("or by looking for the process with `ps aux | grep monerod` (Linux/macOS)")
 	fmt.Println("or `tasklist | findstr monerod.exe` (Windows).")
 
-	// Wait for the command to finish.
 	err = cmd.Wait()
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {

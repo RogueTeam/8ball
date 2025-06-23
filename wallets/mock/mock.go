@@ -62,7 +62,7 @@ func New(config Config) *Mock {
 	return m
 }
 
-func (m *Mock) Sync(ctx context.Context) (err error) { return nil }
+func (m *Mock) Sync(ctx context.Context, _ bool) (err error) { return nil }
 
 // NewAddress creates a new mock account.
 func (m *Mock) NewAddress(ctx context.Context, req wallets.NewAddressRequest) (address wallets.Address, err error) {

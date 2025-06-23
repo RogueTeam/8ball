@@ -109,7 +109,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 				Priority:    wallets.PriorityHigh,
 				UnlockTime:  0,
 			})
-			assertions.Nil(err, "failed to transfer funds to internal address")
+			if !assertions.Nil(err, "failed to transfer funds to internal address") {
+				return
+			}
 			assertions.NotEmpty(transfer.Address, "transfer should have a transaction address")
 			assertions.Equal(uint64(0), transfer.SourceIndex, "source index should be 0")
 			assertions.Equal(dst.Address, transfer.Destination, "destination address should match")
@@ -123,14 +125,16 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 			var found bool
 			for try := range 3_600 {
 				t.Log("[*] Syncing")
-				err = w.Sync(ctx)
+				err = w.Sync(ctx, true)
 				assertions.Nil(err, "failed to sync")
 				t.Log("[*] Synced")
 
 				t.Log("[*] Checking Transaction: Attempt ", try+1)
 
-				tx, err := w.Transaction(ctx, wallets.TransactionRequest{TransactionId: transfer.Address})
-				assertions.Nil(err, "failed to get destination address balance after internal transfer")
+				tx, err := w.Transaction(ctx, wallets.TransactionRequest{SourceIndex: transfer.SourceIndex, TransactionId: transfer.Address})
+				if !assertions.Nil(err, "failed to get destination address balance after internal transfer") {
+					return
+				}
 
 				if tx.Status == wallets.TransactionStatusCompleted {
 					found = true
@@ -158,7 +162,7 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 			assertions.Nil(err, "failed to create new address for internal transfer")
 
 			// Attempt to transfer more than available in Address 0
-			insufficientAmount := currentAddress0.Balance + 1000 // More than current balance
+			insufficientAmount := currentAddress0.UnlockedBalance + 1000 // More than current balance
 
 			_, err = w.Transfer(ctx, wallets.TransferRequest{
 				SourceIndex: 0,
@@ -247,19 +251,23 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 				Priority:    wallets.PriorityHigh,
 				UnlockTime:  0,
 			})
-			assertions.Nil(err, "failed to transfer testing amount")
+			if !assertions.Nil(err, "failed to transfer testing amount") {
+				return
+			}
 
 			t.Log("[*] Waiting for transfer be available")
 			var validSourceAddressBalance bool
 			for try := range 3_600 {
 				t.Log("[*] Syncing")
-				err = w.Sync(ctx)
+				err = w.Sync(ctx, true)
 				assertions.Nil(err, "failed to sync")
 				t.Log("[*] Synced")
 
 				t.Log("[*] Checking Transaction: Attempt ", try+1)
-				tx, err := w.Transaction(ctx, wallets.TransactionRequest{TransactionId: firstTransfer.Address})
-				assertions.Nil(err, "failed to get destination address balance after internal transfer")
+				tx, err := w.Transaction(ctx, wallets.TransactionRequest{SourceIndex: firstTransfer.SourceIndex, TransactionId: firstTransfer.Address})
+				if !assertions.Nil(err, "failed to get destination address balance after internal transfer") {
+					return
+				}
 
 				if tx.Status == wallets.TransactionStatusCompleted {
 					validSourceAddressBalance = true
@@ -272,7 +280,7 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 			t.Log("[+] Transfer received at address", sweepSourceAddr.Index)
 
 			t.Log("[*] Syncing")
-			err = w.Sync(ctx)
+			err = w.Sync(ctx, true)
 			assertions.Nil(err, "failed to sync")
 			t.Log("[*] Synced")
 
@@ -287,7 +295,7 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 			t.Log("[*] Waiting for successful sweep")
 			for range 3_600 {
 				t.Log("[*] Syncing")
-				err = w.Sync(ctx)
+				err = w.Sync(ctx, true)
 				assertions.Nil(err, "failed to sync")
 				t.Log("[*] Synced")
 
@@ -333,7 +341,7 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 			for try := range 3_600 {
 				t.Log("[*] Checking Transaction: Attempt ", try+1)
 
-				tx, err := w.Transaction(ctx, wallets.TransactionRequest{TransactionId: sweep.Address})
+				tx, err := w.Transaction(ctx, wallets.TransactionRequest{SourceIndex: sweep.SourceIndex, TransactionId: sweep.Address})
 				assertions.Nil(err, "failed to get destination address balance after internal transfer")
 
 				if tx.Status == wallets.TransactionStatusCompleted {

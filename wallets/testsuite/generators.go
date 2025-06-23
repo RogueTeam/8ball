@@ -1,5 +1,7 @@
 package testsuite
 
+import "anarchy.ttfm/8ball/wallets/monero"
+
 type MockGenerator struct {
 }
 
@@ -11,5 +13,6 @@ type MoneroGenerator struct {
 }
 
 func (g *MoneroGenerator) TransferAmount() (amount uint64) {
-	return 1_000_000_000_000
+	const value = monero.MoneroUnit // 1 XMR
+	return value
 }

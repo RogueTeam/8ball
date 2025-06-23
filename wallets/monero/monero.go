@@ -10,6 +10,8 @@ import (
 	wallets "anarchy.ttfm/8ball/wallets"
 )
 
+const MoneroUnit = 1_000_000_000_000
+
 type Config struct {
 	Accounts bool
 	Client   *rpc.Client
@@ -28,10 +30,20 @@ var (
 
 var _ wallets.Wallet = (*Wallet)(nil)
 
-func (w *Wallet) Sync(ctx context.Context) (err error) {
-	_, err = w.client.Refresh(ctx, &rpc.RefreshRequest{StartHeight: 0})
+func (w *Wallet) Sync(ctx context.Context, full bool) (err error) {
+	var height uint64
+	if full {
+		height = 1
+	}
+
+	_, err = w.client.Refresh(ctx, &rpc.RefreshRequest{StartHeight: height})
 	if err != nil {
 		return fmt.Errorf("failed to refresh wallet at height 0: %w", err)
+	}
+
+	err = w.client.RescanSpent(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to rescan for spent outputs: %w", err)
 	}
 
 	return
@@ -124,6 +136,7 @@ func (w *Wallet) SweepAll(ctx context.Context, req wallets.SweepRequest) (sweep 
 	if err != nil {
 		return sweep, fmt.Errorf("failed to convert priority: %w", err)
 	}
+
 	var trans rpc.SweepAllRequest
 	if w.accounts {
 		trans = rpc.SweepAllRequest{
@@ -253,17 +266,22 @@ func (w *Wallet) Address(ctx context.Context, req wallets.AddressRequest) (addre
 	if w.accounts {
 		addr, err := w.client.GetAddress(ctx, &rpc.GetAddressRequest{
 			AccountIndex: req.Index,
-			AddressIndex: []uint64{0},
 		})
 		if err != nil {
 			return address, fmt.Errorf("failed to get account balance: %w", err)
 		}
 
+		var balance uint64
+		var unlocked uint64
+		for _, entry := range addr.Addresses {
+			balance += entry.Balance
+			unlocked += entry.UnlockedBalance
+		}
 		address = wallets.Address{
 			Address:         addr.Address,
 			Index:           req.Index,
-			Balance:         addr.Addresses[0].Balance,
-			UnlockedBalance: addr.Addresses[0].UnlockedBalance,
+			Balance:         balance,
+			UnlockedBalance: unlocked,
 		}
 	} else {
 		addressBalance, err := w.client.GetBalance(ctx, &rpc.GetBalanceRequest{
@@ -297,8 +315,16 @@ func (w *Wallet) ValidateAddress(ctx context.Context, req wallets.ValidateAddres
 }
 
 func (w *Wallet) Transaction(ctx context.Context, req wallets.TransactionRequest) (tx wallets.Transaction, err error) {
-	var getTransfer = rpc.GetTransferByTxidRequest{
-		Txid: req.TransactionId,
+	var getTransfer rpc.GetTransferByTxidRequest
+	if w.accounts {
+		getTransfer = rpc.GetTransferByTxidRequest{
+			AccountIndex: req.SourceIndex,
+			Txid:         req.TransactionId,
+		}
+	} else {
+		getTransfer = rpc.GetTransferByTxidRequest{
+			Txid: req.TransactionId,
+		}
 	}
 
 	transaction, err := w.client.GetTransferByTxid(ctx, &getTransfer)
@@ -332,7 +358,8 @@ func (w *Wallet) Transaction(ctx context.Context, req wallets.TransactionRequest
 
 func New(config Config) (w *Wallet) {
 	w = &Wallet{
-		client: config.Client,
+		accounts: config.Accounts,
+		client:   config.Client,
 	}
 	return w
 }

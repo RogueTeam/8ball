@@ -25,21 +25,11 @@ func (c *Controller) Receive(req Receive) (payment Payment, err error) {
 	defer cancel()
 
 	err = c.db.Update(func(txn *badger.Txn) (err error) {
-		// Prepare new entry
-		receiver, err := c.wallet.NewAddress(ctx, wallets.NewAddressRequest{Label: payment.Id.String()})
-		if err != nil {
-			return fmt.Errorf("failed to prepare receiver address: %w", err)
-		}
-
 		payment = Payment{
 			Id:         uuid.New(),
 			Priority:   req.Priority,
 			Amount:     req.Amount,
 			Expiration: time.Now().Add(c.timeout),
-			Receiver: Receiver{
-				Address: receiver.Address,
-				Index:   receiver.Index,
-			},
 			Fee: Fee{
 				Status:     StatusPending,
 				Percentage: c.feePercentage,
@@ -49,6 +39,17 @@ func (c *Controller) Receive(req Receive) (payment Payment, err error) {
 				Status:  StatusPending,
 				Address: req.Address,
 			},
+		}
+
+		// Prepare new entry
+		receiver, err := c.wallet.NewAddress(ctx, wallets.NewAddressRequest{Label: payment.Id.String()})
+		if err != nil {
+			return fmt.Errorf("failed to prepare receiver address: %w", err)
+		}
+
+		payment.Receiver = Receiver{
+			Address: receiver.Address,
+			Index:   receiver.Index,
 		}
 
 		// Pending entry

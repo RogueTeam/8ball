@@ -13,7 +13,7 @@ import (
 func (c *Controller) getReceiverAddress(ctx context.Context, r Receiver) (address wallets.Address, err error) {
 	log.Println("Querying address:", r.Index)
 
-	err = c.wallet.Sync(ctx)
+	err = c.wallet.Sync(ctx, true)
 	if err != nil {
 		return address, fmt.Errorf("failed to sync wallet: %w", err)
 	}

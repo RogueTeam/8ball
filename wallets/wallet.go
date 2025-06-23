@@ -88,6 +88,7 @@ type (
 		Valid bool
 	}
 	TransactionRequest struct {
+		SourceIndex   uint64
 		TransactionId string
 	}
 	Transaction struct {
@@ -108,7 +109,7 @@ const (
 
 type Wallet interface {
 	// Sync the wallet
-	Sync(ctx context.Context) (err error)
+	Sync(ctx context.Context, full bool) (err error)
 
 	// Create a new address associate with the address
 	NewAddress(ctx context.Context, req NewAddressRequest) (address Address, err error)
