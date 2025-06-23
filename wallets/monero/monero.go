@@ -23,7 +23,7 @@ type Wallet struct {
 }
 
 var (
-	ErrNoAccountFound   = errors.New("no account found with that name")
+	ErrAddressNotFound  = errors.New("address not found")
 	ErrInvalidAddrIndex = errors.New("invalid address index")
 	ErrInvalidAddress   = errors.New("invalid address")
 )
@@ -44,6 +44,11 @@ func (w *Wallet) Sync(ctx context.Context, full bool) (err error) {
 	err = w.client.RescanSpent(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to rescan for spent outputs: %w", err)
+	}
+
+	err = w.client.Store(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to save changes: %w", err)
 	}
 
 	return
@@ -140,16 +145,17 @@ func (w *Wallet) SweepAll(ctx context.Context, req wallets.SweepRequest) (sweep 
 	var trans rpc.SweepAllRequest
 	if w.accounts {
 		trans = rpc.SweepAllRequest{
-			Address:       req.Destination,
-			AccountIndex:  req.SourceIndex,
-			Priority:      priority,
-			Outputs:       1,
-			BelowAmount:   0xFFFFFFFFFFFFFFFF,
-			RingSize:      16, // Fixed by the network. May require update in the future
-			UnlockTime:    req.UnlockTime,
-			GetTxKeys:     true,
-			GetTxHex:      true,
-			GetTxMetadata: true,
+			Address:           req.Destination,
+			AccountIndex:      req.SourceIndex,
+			SubaddrIndicesAll: true,
+			Priority:          priority,
+			Outputs:           1,
+			BelowAmount:       0xFFFFFFFFFFFFFFFF,
+			RingSize:          16, // Fixed by the network. May require update in the future
+			UnlockTime:        req.UnlockTime,
+			GetTxKeys:         true,
+			GetTxHex:          true,
+			GetTxMetadata:     true,
 		}
 	} else {
 		trans = rpc.SweepAllRequest{
@@ -246,60 +252,56 @@ func (w *Wallet) Transfer(ctx context.Context, req wallets.TransferRequest) (tra
 		Fee:         res.Fee,
 	}
 
-	err = w.client.Store(ctx)
-	if err != nil {
-		return transfer, fmt.Errorf("failed to save changes: %w", err)
-	}
-
-	transfer = wallets.Transfer{
-		Address:     res.TxHash,
-		SourceIndex: req.SourceIndex,
-		Destination: req.Destination,
-		Amount:      res.Amount,
-		Fee:         res.Fee,
-	}
-
-	return
+	return transfer, nil
 }
 
 func (w *Wallet) Address(ctx context.Context, req wallets.AddressRequest) (address wallets.Address, err error) {
 	if w.accounts {
-		addr, err := w.client.GetAddress(ctx, &rpc.GetAddressRequest{
-			AccountIndex: req.Index,
-		})
+		accounts, err := w.client.GetAccounts(ctx, &rpc.GetAccountsRequest{})
 		if err != nil {
 			return address, fmt.Errorf("failed to get account balance: %w", err)
 		}
 
-		var balance uint64
-		var unlocked uint64
-		for _, entry := range addr.Addresses {
-			balance += entry.Balance
-			unlocked += entry.UnlockedBalance
+		for _, account := range accounts.SubaddressAccounts {
+			if account.AddressIndex != req.Index {
+				continue
+			}
+
+			address = wallets.Address{
+				Address:         account.Address,
+				Index:           req.Index,
+				Balance:         account.Balance,
+				UnlockedBalance: account.UnlockedBalance,
+			}
+			return address, nil
 		}
-		address = wallets.Address{
-			Address:         addr.Address,
-			Index:           req.Index,
-			Balance:         balance,
-			UnlockedBalance: unlocked,
-		}
-	} else {
-		addressBalance, err := w.client.GetBalance(ctx, &rpc.GetBalanceRequest{
-			AccountIndex:   0,
-			AddressIndices: []uint64{req.Index},
-		})
-		if err != nil {
-			return address, fmt.Errorf("failed to get address balance: %w", err)
+
+		return address, ErrAddressNotFound
+	}
+
+	addressBalance, err := w.client.GetAddress(ctx, &rpc.GetAddressRequest{
+		AccountIndex: 0,
+		AddressIndex: []uint64{req.Index},
+	})
+	if err != nil {
+		return address, fmt.Errorf("failed to get address balance: %w", err)
+	}
+
+	for _, addr := range addressBalance.Addresses {
+		if addr.AddressIndex != req.Index {
+			continue
 		}
 
 		address = wallets.Address{
-			Address:         addressBalance.PerSubaddress[0].Address,
+			Address:         addr.Address,
 			Index:           req.Index,
-			Balance:         addressBalance.PerSubaddress[0].Balance,
-			UnlockedBalance: addressBalance.PerSubaddress[0].UnlockedBalance,
+			Balance:         addr.Balance,
+			UnlockedBalance: addr.UnlockedBalance,
 		}
+		return address, nil
 	}
-	return
+
+	return address, ErrAddressNotFound
 }
 
 func (w *Wallet) ValidateAddress(ctx context.Context, req wallets.ValidateAddressRequest) (valid wallets.ValidateAddress, err error) {
@@ -315,16 +317,11 @@ func (w *Wallet) ValidateAddress(ctx context.Context, req wallets.ValidateAddres
 }
 
 func (w *Wallet) Transaction(ctx context.Context, req wallets.TransactionRequest) (tx wallets.Transaction, err error) {
-	var getTransfer rpc.GetTransferByTxidRequest
+	var getTransfer = rpc.GetTransferByTxidRequest{
+		Txid: req.TransactionId,
+	}
 	if w.accounts {
-		getTransfer = rpc.GetTransferByTxidRequest{
-			AccountIndex: req.SourceIndex,
-			Txid:         req.TransactionId,
-		}
-	} else {
-		getTransfer = rpc.GetTransferByTxidRequest{
-			Txid: req.TransactionId,
-		}
+		getTransfer.AccountIndex = req.SourceIndex
 	}
 
 	transaction, err := w.client.GetTransferByTxid(ctx, &getTransfer)
