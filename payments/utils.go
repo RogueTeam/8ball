@@ -2,7 +2,6 @@ package payments
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -31,8 +30,8 @@ func (c *Controller) getReceiverAddress(ctx context.Context, r Receiver) (addres
 
 // This utility function is used for those scenarios in which the payment has changed state
 func (c *Controller) savePaymentState(p Payment) (err error) {
-	cc, _ := json.MarshalIndent(p, "", "\t")
-	log.Println("Saving payment:", string(cc))
+	// cc, _ := json.MarshalIndent(p, "", "\t")
+	// log.Println("Saving payment:", string(cc))
 
 	return c.db.Update(func(txn *badger.Txn) (err error) {
 		contents := p.Bytes()

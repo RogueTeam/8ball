@@ -2,10 +2,8 @@ package monero
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 
 	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
 	"anarchy.ttfm/8ball/utils"
@@ -359,9 +357,6 @@ func (w *Wallet) Transaction(ctx context.Context, req wallets.TransactionRequest
 	if len(transfer.Destinations) > 0 {
 		tx.Destination = transfer.Destinations[0].Address
 	}
-
-	cc, _ := json.MarshalIndent(transfer, "", "\t")
-	log.Println(string(cc))
 
 	return tx, nil
 }

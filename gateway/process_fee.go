@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -11,8 +10,8 @@ import (
 )
 
 func (c *Controller) processFee(p Payment) (err error) {
-	cc, _ := json.MarshalIndent(p, "", "\t")
-	log.Println("Processing fee:", string(cc))
+	// cc, _ := json.MarshalIndent(p, "", "\t")
+	// log.Println("Processing fee:", string(cc))
 
 	ctx, cancel := utils.NewContext()
 	defer cancel()

@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -14,8 +13,8 @@ import (
 func (c *Controller) processPayment(p Payment) (err error) {
 	now := time.Now()
 
-	cc, _ := json.MarshalIndent(p, "", "\t")
-	log.Println("Processing payment:", string(cc))
+	// cc, _ := json.MarshalIndent(p, "", "\t")
+	// log.Println("Processing payment:", string(cc))
 
 	ctx, cancel := utils.NewContext()
 	defer cancel()

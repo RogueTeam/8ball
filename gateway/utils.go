@@ -34,8 +34,8 @@ func (c *Controller) getReceiverAddress(ctx context.Context, r Receiver) (addres
 
 // This utility function is used for those scenarios in which the payment has changed state
 func (c *Controller) savePendingFee(p Payment) (err error) {
-	cc, _ := json.MarshalIndent(p, "", "\t")
-	log.Println("Storing pending fee:", string(cc))
+	// cc, _ := json.MarshalIndent(p, "", "\t")
+	// log.Println("Storing pending fee:", string(cc))
 
 	return c.db.Update(func(txn *badger.Txn) (err error) {
 		err = txn.Set(FeeKey(p.Id), p.Id[:])
