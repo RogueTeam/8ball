@@ -27,6 +27,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 		ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 		defer cancel()
 
+		err := w.Sync(ctx, true)
+		assertions.Nil(err, "failed to sync")
+
 		// Verify Address 0 exists and has zero balance initially
 		address0, err := w.Address(ctx, wallets.AddressRequest{Index: 0})
 		assertions.Nil(err, "failed to retrieve initial address 0 balance")
@@ -42,6 +45,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 
 		ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 		defer cancel()
+
+		err := w.Sync(ctx, true)
+		assertions.Nil(err, "failed to sync")
 
 		label := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
 		address, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: label})
@@ -74,6 +80,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 		ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 		defer cancel()
 
+		err := w.Sync(ctx, true)
+		assertions.Nil(err, "failed to sync")
+
 		label := random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
 		address, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: label})
 		assertions.Nil(err, "failed to create new address")
@@ -95,9 +104,12 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
 
-			currentAddress0, err := w.Address(ctx, wallets.AddressRequest{Index: 0})
+			err := w.Sync(ctx, true)
+			assertions.Nil(err, "failed to sync")
+
+			firstAddress0, err := w.Address(ctx, wallets.AddressRequest{Index: 0})
 			assertions.Nil(err, "failed to get current address 0 balance")
-			t.Logf("Address 0 balance before transfers: Balance:%d ; UnlockedBalance:%d", currentAddress0.Balance, currentAddress0.UnlockedBalance)
+			t.Logf("Address 0 balance before transfers: Balance:%d ; UnlockedBalance:%d", firstAddress0.Balance, firstAddress0.UnlockedBalance)
 
 			dst, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
 			assertions.Nil(err, "failed to create new address for internal transfer")
@@ -120,8 +132,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 			// Verify balances after internal transfer
 			address0After, err := w.Address(ctx, wallets.AddressRequest{Index: 0})
 			assertions.Nil(err, "failed to get address 0 balance after internal transfer")
-			assertions.Less(address0After.Balance, currentAddress0.Balance, "Address 0 balance should be reduced by transfer amount")
+			assertions.Less(address0After.Balance, firstAddress0.Balance, "Address 0 balance should be reduced by transfer amount")
 
+			var tx wallets.Transaction
 			var found bool
 			for try := range 3_600 {
 				t.Log("[*] Syncing")
@@ -131,18 +144,19 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 
 				t.Log("[*] Checking Transaction: Attempt ", try+1)
 
-				tx, err := w.Transaction(ctx, wallets.TransactionRequest{SourceIndex: transfer.SourceIndex, TransactionId: transfer.Address})
+				tx, err = w.Transaction(ctx, wallets.TransactionRequest{SourceIndex: transfer.SourceIndex, TransactionId: transfer.Address})
 				if !assertions.Nil(err, "failed to get destination address balance after internal transfer") {
 					return
 				}
 
-				if tx.Status == wallets.TransactionStatusCompleted {
+				if tx.Status != wallets.TransactionStatusPending {
 					found = true
 					break
 				}
 				time.Sleep(time.Second)
 			}
 			assertions.True(found, "Destination address balance should increase by net transfer amount")
+			assertions.Equal(wallets.TransactionStatusCompleted, tx.Status, "status doesn't match")
 			t.Log("[+] Transaction found")
 		})
 
@@ -153,6 +167,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
+
+			err := w.Sync(ctx, true)
+			assertions.Nil(err, "failed to sync")
 
 			currentAddress0, err := w.Address(ctx, wallets.AddressRequest{Index: 0})
 			assertions.Nil(err, "failed to get current address 0 balance")
@@ -184,6 +201,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
 
+			err := w.Sync(ctx, true)
+			assertions.Nil(err, "failed to sync")
+
 			currentAddress0, err := w.Address(ctx, wallets.AddressRequest{Index: 0})
 			assertions.Nil(err, "failed to get current address 0 balance")
 			t.Logf("Address 0 balance before transfers: %d", currentAddress0.Balance)
@@ -209,6 +229,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
+
+			err := w.Sync(ctx, true)
+			assertions.Nil(err, "failed to sync")
 
 			dst, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)})
 			assertions.Nil(err, "failed to create new address for internal transfer")
@@ -236,6 +259,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
 
+			err := w.Sync(ctx, true)
+			assertions.Nil(err, "failed to sync")
+
 			sourceLabel := "sweep_source" + random.String(random.PseudoRand, random.CharsetAlphaNumeric, 10)
 			// Create a new address and fund it specifically for this sweep test
 			sweepSourceAddr, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: sourceLabel})
@@ -256,6 +282,8 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 			}
 
 			t.Log("[*] Waiting for transfer be available")
+
+			var transferTx wallets.Transaction
 			var validSourceAddressBalance bool
 			for try := range 3_600 {
 				t.Log("[*] Syncing")
@@ -264,12 +292,12 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 				t.Log("[*] Synced")
 
 				t.Log("[*] Checking Transaction: Attempt ", try+1)
-				tx, err := w.Transaction(ctx, wallets.TransactionRequest{SourceIndex: firstTransfer.SourceIndex, TransactionId: firstTransfer.Address})
+				transferTx, err = w.Transaction(ctx, wallets.TransactionRequest{SourceIndex: firstTransfer.SourceIndex, TransactionId: firstTransfer.Address})
 				if !assertions.Nil(err, "failed to get destination address balance after internal transfer") {
 					return
 				}
 
-				if tx.Status == wallets.TransactionStatusCompleted {
+				if transferTx.Status != wallets.TransactionStatusPending {
 					validSourceAddressBalance = true
 					break
 				}
@@ -277,6 +305,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 				time.Sleep(time.Second)
 			}
 			assertions.True(validSourceAddressBalance, "source address never received balance")
+			if !assertions.Equal(wallets.TransactionStatusCompleted, transferTx.Status, "invalid status") {
+				return
+			}
 			t.Log("[+] Transfer received at address", sweepSourceAddr.Index)
 
 			t.Log("[*] Syncing")
@@ -337,20 +368,22 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 			assertions.Equal(uint64(0), sourceAddrAfter.Balance, "source address balance should be zero after sweep")
 			assertions.Equal(uint64(0), sourceAddrAfter.UnlockedBalance, "source address unlocked balance should be zero after sweep")
 
+			var sweepTx wallets.Transaction
 			var dstAddressBalanceValid bool
 			for try := range 3_600 {
 				t.Log("[*] Checking Transaction: Attempt ", try+1)
 
-				tx, err := w.Transaction(ctx, wallets.TransactionRequest{SourceIndex: sweep.SourceIndex, TransactionId: sweep.Address})
+				sweepTx, err = w.Transaction(ctx, wallets.TransactionRequest{SourceIndex: sweep.SourceIndex, TransactionId: sweep.Address})
 				assertions.Nil(err, "failed to get destination address balance after internal transfer")
 
-				if tx.Status == wallets.TransactionStatusCompleted {
+				if sweepTx.Status != wallets.TransactionStatusPending {
 					dstAddressBalanceValid = true
 					break
 				}
 				time.Sleep(time.Second)
 			}
 			assertions.True(dstAddressBalanceValid, "destination address balance should increase by net swept amount")
+			assertions.Equal(wallets.TransactionStatusCompleted, sweepTx.Status, "invalid status")
 			t.Log("[+] Transaction found")
 		})
 
@@ -361,6 +394,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
+
+			err := w.Sync(ctx, true)
+			assertions.Nil(err, "failed to sync")
 
 			// Create a new address with zero balance
 			emptyAddr, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: "empty_address"})
@@ -386,6 +422,9 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 
 			ctx, cancel := utils.NewContextWithTimeout(time.Hour)
 			defer cancel()
+
+			err := w.Sync(ctx, true)
+			assertions.Nil(err, "failed to sync")
 
 			sweepDstAddr, err := w.NewAddress(ctx, wallets.NewAddressRequest{Label: "sweep_destination"})
 			assertions.Nil(err, "failed to create sweep destination address")

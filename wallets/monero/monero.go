@@ -2,8 +2,10 @@ package monero
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 
 	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
 	"anarchy.ttfm/8ball/utils"
@@ -30,10 +32,19 @@ var (
 
 var _ wallets.Wallet = (*Wallet)(nil)
 
+var syncAttr = map[string]string{}
+
 func (w *Wallet) Sync(ctx context.Context, full bool) (err error) {
 	var height uint64
 	if full {
 		height = 1
+	}
+
+	for attr, value := range syncAttr {
+		err = w.client.SetAttribute(ctx, &rpc.SetAttributeRequest{Key: attr, Value: value})
+		if err != nil {
+			return fmt.Errorf("failed to set attribute: %s = %s: %w", attr, value, err)
+		}
 	}
 
 	_, err = w.client.Refresh(ctx, &rpc.RefreshRequest{StartHeight: height})
@@ -257,51 +268,50 @@ func (w *Wallet) Transfer(ctx context.Context, req wallets.TransferRequest) (tra
 
 func (w *Wallet) Address(ctx context.Context, req wallets.AddressRequest) (address wallets.Address, err error) {
 	if w.accounts {
-		accounts, err := w.client.GetAccounts(ctx, &rpc.GetAccountsRequest{})
+		balance, err := w.client.GetBalance(ctx, &rpc.GetBalanceRequest{
+			AccountIndex: req.Index,
+		})
 		if err != nil {
 			return address, fmt.Errorf("failed to get account balance: %w", err)
 		}
 
-		for _, account := range accounts.SubaddressAccounts {
-			if account.AddressIndex != req.Index {
-				continue
-			}
-
-			address = wallets.Address{
-				Address:         account.Address,
-				Index:           req.Index,
-				Balance:         account.Balance,
-				UnlockedBalance: account.UnlockedBalance,
-			}
-			return address, nil
-		}
-
-		return address, ErrAddressNotFound
-	}
-
-	addressBalance, err := w.client.GetAddress(ctx, &rpc.GetAddressRequest{
-		AccountIndex: 0,
-		AddressIndex: []uint64{req.Index},
-	})
-	if err != nil {
-		return address, fmt.Errorf("failed to get address balance: %w", err)
-	}
-
-	for _, addr := range addressBalance.Addresses {
-		if addr.AddressIndex != req.Index {
-			continue
+		addr, err := w.client.GetAddress(ctx, &rpc.GetAddressRequest{
+			AccountIndex: req.Index,
+		})
+		if err != nil {
+			return address, fmt.Errorf("failed to get account address: %w", err)
 		}
 
 		address = wallets.Address{
 			Address:         addr.Address,
 			Index:           req.Index,
-			Balance:         addr.Balance,
-			UnlockedBalance: addr.UnlockedBalance,
+			Balance:         balance.Balance,
+			UnlockedBalance: balance.UnlockedBalance,
 		}
 		return address, nil
 	}
 
-	return address, ErrAddressNotFound
+	balance, err := w.client.GetBalance(ctx, &rpc.GetBalanceRequest{
+		AccountIndex:   0,
+		AddressIndices: []uint64{req.Index},
+	})
+	if err != nil {
+		return address, fmt.Errorf("failed to get balance: %w", err)
+	}
+
+	address = wallets.Address{
+		Index: req.Index,
+	}
+	for _, subBalance := range balance.PerSubaddress {
+		if subBalance.AddressIndex != req.Index {
+			continue
+		}
+		address.Address = subBalance.Address
+		address.Balance = subBalance.Balance
+		address.UnlockedBalance = subBalance.UnlockedBalance
+		break
+	}
+	return address, nil
 }
 
 func (w *Wallet) ValidateAddress(ctx context.Context, req wallets.ValidateAddressRequest) (valid wallets.ValidateAddress, err error) {
@@ -349,6 +359,9 @@ func (w *Wallet) Transaction(ctx context.Context, req wallets.TransactionRequest
 	if len(transfer.Destinations) > 0 {
 		tx.Destination = transfer.Destinations[0].Address
 	}
+
+	cc, _ := json.MarshalIndent(transfer, "", "\t")
+	log.Println(string(cc))
 
 	return tx, nil
 }

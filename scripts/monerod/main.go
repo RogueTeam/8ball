@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -14,6 +15,10 @@ var config struct {
 	dataDir       string
 	network       string
 	miningAddress string
+	miningThreads int
+	peer          string
+	useTor        bool
+	interactive   bool
 }
 
 const monerod = "monerod"
@@ -21,9 +26,13 @@ const monerod = "monerod"
 func init() {
 	flagset := flag.NewFlagSet("monerod", flag.ExitOnError)
 
+	flagset.BoolVar(&config.useTor, "tor", false, "Use tor")
+	flagset.BoolVar(&config.interactive, "interactive", false, "Interactive mode")
 	flagset.StringVar(&config.dataDir, "data-dir", "", "Directory for Monero blockchain data (defaults to monerod's default if not specified)")
 	flagset.StringVar(&config.network, "network", "", "Monero network to use (mainnet, testnet, stagenet). Defaults to mainnet if not specified.")
 	flagset.StringVar(&config.miningAddress, "mining-address", "", "Address for mining.")
+	flagset.IntVar(&config.miningThreads, "mining-threads", 1, "Threads for mining.")
+	flagset.StringVar(&config.peer, "peer", "", "Peer")
 
 	err := flagset.Parse(os.Args[1:])
 	if err != nil {
@@ -34,13 +43,37 @@ func init() {
 func prepareArgs() (args []string) {
 	args = []string{
 		// "--prune-blockchain",
-		"--proxy", "127.0.0.1:9050",
-		"--tx-proxy", "tor,127.0.0.1:9050,10",
 		"--p2p-bind-ip", "127.0.0.1",
 		"--no-igd",
-		"--non-interactive",
 		// "--detach",
 		"--log-level", "0",
+	}
+
+	// Conditionally add network-specific arguments based on the --network flag
+	var actualNetwork string
+	switch config.network {
+	case "mainnet", "": // If --network is "mainnet" or not provided, monerod uses mainnet by default
+		actualNetwork = "mainnet"
+		// No additional argument needed for mainnet
+	case "testnet":
+		actualNetwork = "testnet"
+		args = append(args, "--testnet")
+	case "stagenet":
+		actualNetwork = "stagenet"
+		args = append(args, "--stagenet")
+	default:
+		log.Fatalf("Invalid network specified: %s. Use 'mainnet', 'testnet', or 'stagenet'.", config.network)
+	}
+
+	if !config.interactive {
+		args = append(args, "--non-interactive")
+	}
+
+	if config.useTor {
+		args = append(args, "--proxy", "127.0.0.1:9050")
+		if strings.Contains(config.peer, ".onion") {
+			args = append(args, "--tx-proxy", "tor,127.0.0.1:9050,10")
+		}
 	}
 
 	var actualDataDir string
@@ -71,22 +104,13 @@ func prepareArgs() (args []string) {
 	if config.miningAddress != "" {
 		log.Println("Mining to address", config.miningAddress)
 		args = append(args, "--start-mining", config.miningAddress)
+		args = append(args, "--mining-threads", strconv.Itoa(config.miningThreads))
 	}
 
-	// Conditionally add network-specific arguments based on the --network flag
-	var actualNetwork string
-	switch config.network {
-	case "mainnet", "": // If --network is "mainnet" or not provided, monerod uses mainnet by default
-		actualNetwork = "mainnet"
-		// No additional argument needed for mainnet
-	case "testnet":
-		actualNetwork = "testnet"
-		args = append(args, "--testnet")
-	case "stagenet":
-		actualNetwork = "stagenet"
-		args = append(args, "--stagenet")
-	default:
-		log.Fatalf("Invalid network specified: %s. Use 'mainnet', 'testnet', or 'stagenet'.", config.network)
+	if config.peer != "" {
+		log.Println("Adding peer", config.peer)
+		args = append(args, "--add-peer", config.peer)
+		args = append(args, "--add-priority-node", config.peer)
 	}
 
 	fmt.Printf("Starting monerod on %s network.\n", actualNetwork)
