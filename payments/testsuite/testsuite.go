@@ -114,14 +114,14 @@ func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen D
 				for try := range 3_600 {
 					t.Log("\t[*] Try processing payments: ", try+1)
 
-					err = ctrl.Process()
+					processed, err := ctrl.Process()
 					assertions.Nil(err, "failed to process payments")
 
 					// Verify payment
 					paymentLatest, err = ctrl.Query(payment.Id)
 					assertions.Nil(err, "failed to query payment")
 
-					if paymentLatest.Status != payments.StatusPending {
+					if processed == 0 || paymentLatest.Status != payments.StatusPending {
 						break
 					}
 					time.Sleep(time.Second)

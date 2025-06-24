@@ -122,14 +122,14 @@ func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen D
 				for try := range 3_600 {
 					t.Log("\t[*] Try processing payments: ", try+1)
 
-					err = ctrl.ProcessPendingPayments()
+					processed, err := ctrl.ProcessPendingPayments()
 					assertions.Nil(err, "failed to process payments")
 
 					// Verify payment
 					paymentLatest, err = ctrl.Query(payment.Id)
 					assertions.Nil(err, "failed to query payment")
 
-					if paymentLatest.Beneficiary.Status != gateway.StatusPending {
+					if processed == 0 || paymentLatest.Beneficiary.Status != gateway.StatusPending {
 						break
 					}
 					time.Sleep(time.Second)
@@ -149,14 +149,14 @@ func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen D
 				for try := range 3_600 {
 					t.Log("\t[*] Try processing fees: ", try+1)
 
-					err = ctrl.ProcessPendingFees()
+					processed, err := ctrl.ProcessPendingFees()
 					assertions.Nil(err, "failed to process fee")
 
 					// Verify payment
 					paymentLatest, err = ctrl.Query(payment.Id)
 					assertions.Nil(err, "failed to query fee")
 
-					if paymentLatest.Fee.Status != gateway.StatusPending {
+					if processed == 0 || paymentLatest.Fee.Status != gateway.StatusPending {
 						break
 					}
 					time.Sleep(time.Second)

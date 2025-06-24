@@ -13,6 +13,6 @@ type MoneroGenerator struct {
 }
 
 func (g *MoneroGenerator) TransferAmount() (amount uint64) {
-	const value = monero.MoneroUnit / 100 // 0.01 XMR
+	const value = monero.MoneroUnit / 10 // 0.1 XMR
 	return value
 }

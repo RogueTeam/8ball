@@ -60,14 +60,10 @@ func (c *Controller) processFee(p Payment) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to delete pending payment entry: %w", err)
 	}
-	err = c.savePendingFee(p)
-	if err != nil {
-		return fmt.Errorf("failed to save pending fee: %w", err)
-	}
 	return nil
 }
 
-func (c *Controller) ProcessPendingFees() (err error) {
+func (c *Controller) ProcessPendingFees() (processed uint64, err error) {
 	payments, errChan := c.streamPayments(feePrefixBytes)
 	defer utils.ConsumeChannel(payments)
 	defer utils.ConsumeChannel(errChan)
@@ -75,6 +71,7 @@ func (c *Controller) ProcessPendingFees() (err error) {
 	var jobs = utils.NewJobPool(MaxConcurrentJobs)
 	var wg sync.WaitGroup
 	for payment := range payments {
+		processed++
 		jobs.Get()
 		wg.Add(1)
 		go func() {
@@ -92,7 +89,7 @@ func (c *Controller) ProcessPendingFees() (err error) {
 
 	err = <-errChan
 	if err != nil {
-		return fmt.Errorf("failed to retrieve jobs: %w", err)
+		return processed, fmt.Errorf("failed to retrieve jobs: %w", err)
 	}
-	return nil
+	return processed, nil
 }

@@ -87,7 +87,7 @@ func (c *Controller) processPayment(p Payment) (err error) {
 const MaxConcurrentJobs = 1_000
 
 // Process is a function that goes over all pending payments and checks if the payment was executed
-func (c *Controller) Process() (err error) {
+func (c *Controller) Process() (processed uint64, err error) {
 	payments, errChan := c.streamPendingPayments()
 	defer utils.ConsumeChannel(payments)
 	defer utils.ConsumeChannel(errChan)
@@ -95,6 +95,7 @@ func (c *Controller) Process() (err error) {
 	var jobs = utils.NewJobPool(MaxConcurrentJobs)
 	var wg sync.WaitGroup
 	for payment := range payments {
+		processed++
 		jobs.Get()
 		wg.Add(1)
 		go func() {
@@ -112,7 +113,7 @@ func (c *Controller) Process() (err error) {
 
 	err = <-errChan
 	if err != nil {
-		return fmt.Errorf("failed to retrieve jobs: %w", err)
+		return processed, fmt.Errorf("failed to retrieve jobs: %w", err)
 	}
-	return nil
+	return processed, nil
 }

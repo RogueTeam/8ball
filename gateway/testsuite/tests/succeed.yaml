@@ -42,7 +42,7 @@
   parts: 10
   fullfill-parts: 10
   timeout: 20s
-  transfer-delay: 1s
+  transfer-delay: 0s
   process-pending-delay: 5s
   process-fee-delay: 0s
   expect:
