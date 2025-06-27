@@ -2,7 +2,10 @@ package router
 
 import (
 	"errors"
+	"log"
 	"net/http"
+	"sync"
+	"time"
 
 	"anarchy.ttfm/8ball/gateway"
 	"github.com/gin-gonic/gin"
@@ -11,6 +14,8 @@ import (
 
 // Manages the entire setup of the Gateway service
 type Router struct {
+	// Process interval
+	ProcessInterval time.Duration
 	// Gateway controller
 	Gateway *gateway.Controller
 	// Base Gin Group to use for routing
@@ -68,8 +73,36 @@ func (r *Router) paymentStatus(ctx *gin.Context) {
 }
 
 // Register routes in the Gin engine
-func (r *Router) Register() (err error) {
+func (r *Router) Register() {
 	r.Base.POST(PaymentsPath, r.createPayment)
 	r.Base.GET(PaymentsPathWithId, r.paymentStatus)
-	return nil
+
+	go func() {
+		ticker := time.NewTicker(r.ProcessInterval)
+		defer ticker.Stop()
+
+		for {
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				processed, err := r.Gateway.ProcessPendingPayments()
+				if err != nil {
+					log.Println("ERROR|PROCESSING|PAYMENTS", err)
+				}
+				log.Println("INFO|PROCESSED|PAYMENTS", processed)
+			}()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				processed, err := r.Gateway.ProcessPendingFees()
+				if err != nil {
+					log.Println("ERROR|PROCESSING|FEES", err)
+				}
+				log.Println("INFO|PROCESSED|FEES", processed)
+			}()
+			wg.Wait()
+			<-ticker.C
+		}
+	}()
 }

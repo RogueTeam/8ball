@@ -21,8 +21,8 @@ func main() {
 
 	charlie := rpc.New(rpc.Config{
 		// charlie address
-		Address: "http://127.0.0.1:28284/json_rpc",
-		Client:  &http.Client{ /*default no auth HTTP client*/ },
+		Url:    "http://127.0.0.1:28284/json_rpc",
+		Client: &http.Client{ /*default no auth HTTP client*/ },
 	})
 
 	// charlie sends 0.000333 XMR -> fred
@@ -84,8 +84,8 @@ func main() {
 	fmt.Println("status:", gtp_resp.Status)
 
 	client := rpc.New(rpc.Config{
-		Address: "http://127.0.0.1:18081/json_rpc",
-		Client:  &http.Client{ /*default no auth HTTP client*/ },
+		Url:    "http://127.0.0.1:18081/json_rpc",
+		Client: &http.Client{ /*default no auth HTTP client*/ },
 	})
 
 	// mine to fred

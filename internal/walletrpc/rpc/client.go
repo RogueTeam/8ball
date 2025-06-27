@@ -14,7 +14,7 @@ import (
 func New(cfg Config) *Client {
 	cl := &Client{
 		mutex:   &sync.Mutex{},
-		addr:    cfg.Address,
+		addr:    cfg.Url,
 		headers: cfg.CustomHeaders,
 	}
 	if cfg.Client == nil {

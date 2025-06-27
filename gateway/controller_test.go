@@ -38,7 +38,7 @@ func newMoneroClient(t *testing.T) (client *rpc.Client) {
 	assertions := assert.New(t)
 
 	var config = rpc.Config{
-		Address: "http://127.0.0.1:22222/json_rpc",
+		Url: "http://127.0.0.1:22222/json_rpc",
 
 		Client: &http.Client{
 			Transport: httpdigest.New("username", "password"), // Remove if no auth.
