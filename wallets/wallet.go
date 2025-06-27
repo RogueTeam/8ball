@@ -4,17 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 var ErrInvalidPriority = errors.New("invalid priority")
 
 const (
 	PriorityLow    Priority = "low"
-	PriorityMedium Priority = "meidum"
+	PriorityMedium Priority = "medium"
 	PriorityHigh   Priority = "high"
 )
 
 type Priority string
+
+func (p Priority) Validate() (err error) {
+	switch p {
+	case PriorityLow, PriorityMedium, PriorityHigh:
+		return nil
+	default:
+		return fmt.Errorf("unknown priority, expecting %s, %s or %s but got: %s", PriorityLow, PriorityMedium, PriorityHigh, p)
+	}
+}
 
 type (
 	AddressRequest struct {
@@ -84,9 +94,6 @@ type (
 	ValidateAddressRequest struct {
 		Address string
 	}
-	ValidateAddress struct {
-		Valid bool
-	}
 	TransactionRequest struct {
 		SourceIndex   uint64
 		TransactionId string
@@ -124,7 +131,7 @@ type Wallet interface {
 	Address(ctx context.Context, req AddressRequest) (address Address, err error)
 
 	// Validate if a monero is valid or not
-	ValidateAddress(ctx context.Context, req ValidateAddressRequest) (valid ValidateAddress, err error)
+	ValidateAddress(ctx context.Context, req ValidateAddressRequest) (err error)
 
 	// Query the status of a transaction
 	Transaction(ctx context.Context, req TransactionRequest) (tx Transaction, err error)

@@ -13,6 +13,8 @@ var (
 )
 
 type Controller struct {
+	minAmount     uint64
+	maxAmount     uint64
 	db            *badger.DB
 	timeout       time.Duration
 	feePercentage uint64
@@ -21,6 +23,10 @@ type Controller struct {
 }
 
 type Config struct {
+	// Minimum amount accepted
+	MinAmount uint64
+	// Maximum amount accepted
+	MaxAmount uint64
 	// Badger database to use
 	DB *badger.DB
 	// Default Timeout until payment in canceled
@@ -36,6 +42,8 @@ type Config struct {
 }
 
 func New(config Config) (ctrl Controller) {
+	ctrl.minAmount = config.MinAmount
+	ctrl.maxAmount = config.MaxAmount
 	ctrl.db = config.DB
 	ctrl.timeout = config.Timeout
 	ctrl.feePercentage = config.FeePercentage

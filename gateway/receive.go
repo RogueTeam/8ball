@@ -1,10 +1,10 @@
 package gateway
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"anarchy.ttfm/8ball/utils"
 	"anarchy.ttfm/8ball/wallets"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/google/uuid"
@@ -16,13 +16,35 @@ type Receive struct {
 	Priority wallets.Priority
 }
 
+func (c *Controller) validateReceive(ctx context.Context, r *Receive) (err error) {
+	if r.Amount < c.minAmount {
+		return fmt.Errorf("amount should be greater or equal than: %d", c.minAmount)
+	}
+	if r.Amount > c.maxAmount {
+		return fmt.Errorf("amount should be less or equal than: %d", c.maxAmount)
+	}
+
+	err = r.Priority.Validate()
+	if err != nil {
+		return fmt.Errorf("invalid priority: %w", err)
+	}
+
+	err = c.wallet.ValidateAddress(ctx, wallets.ValidateAddressRequest{Address: r.Address})
+	if err != nil {
+		return fmt.Errorf("failed to validate address: %w", err)
+	}
+	return nil
+}
+
 // Creates a new payment address based on the passed crypto currency and amount expected to receive
 // It uses the default timeout in order to prevent infinite entries
 // id is the id to be used for future checks
 // fee is the percentage to be discounted from the entire transaction
-func (c *Controller) Receive(req Receive) (payment Payment, err error) {
-	ctx, cancel := utils.NewContext()
-	defer cancel()
+func (c *Controller) Receive(ctx context.Context, req *Receive) (payment Payment, err error) {
+	err = c.validateReceive(ctx, req)
+	if err != nil {
+		return payment, fmt.Errorf("failed to validate request: %w", err)
+	}
 
 	err = c.db.Update(func(txn *badger.Txn) (err error) {
 		payment = Payment{

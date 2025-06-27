@@ -241,9 +241,9 @@ func (m *Mock) Address(ctx context.Context, req wallets.AddressRequest) (address
 }
 
 // ValidateAddress always returns true for any address in the mock.
-func (m *Mock) ValidateAddress(ctx context.Context, req wallets.ValidateAddressRequest) (valid wallets.ValidateAddress, err error) {
+func (m *Mock) ValidateAddress(ctx context.Context, req wallets.ValidateAddressRequest) (err error) {
 	// For testing, all addresses are valid.
-	return wallets.ValidateAddress{Valid: true}, nil
+	return nil
 }
 
 func (m *Mock) Transaction(ctx context.Context, req wallets.TransactionRequest) (tx wallets.Transaction, err error) {

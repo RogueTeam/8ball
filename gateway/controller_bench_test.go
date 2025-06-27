@@ -1,6 +1,7 @@
 package gateway_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -66,10 +67,12 @@ func Benchmark_Insertion(b *testing.B) {
 	for range b.N {
 		for i := 0; i < numPayments; i++ {
 			// Create the payment intent in the controller.
-			_, err := ctrl.Receive(gateway.Receive{
-				Amount:   10_000,
-				Priority: wallets.PriorityHigh,
-			})
+			_, err := ctrl.Receive(
+				context.TODO(),
+				&gateway.Receive{
+					Amount:   10_000,
+					Priority: wallets.PriorityHigh,
+				})
 			assertions.Nil(err, "failed to create payment")
 		}
 	}

@@ -312,16 +312,8 @@ func (w *Wallet) Address(ctx context.Context, req wallets.AddressRequest) (addre
 	return address, nil
 }
 
-func (w *Wallet) ValidateAddress(ctx context.Context, req wallets.ValidateAddressRequest) (valid wallets.ValidateAddress, err error) {
-	err = w.validateAddress(ctx, req.Address)
-	if err != nil {
-		return valid, fmt.Errorf("failed to validate address: %w", err)
-	}
-
-	valid = wallets.ValidateAddress{
-		Valid: true,
-	}
-	return
+func (w *Wallet) ValidateAddress(ctx context.Context, req wallets.ValidateAddressRequest) (err error) {
+	return w.validateAddress(ctx, req.Address)
 }
 
 func (w *Wallet) Transaction(ctx context.Context, req wallets.TransactionRequest) (tx wallets.Transaction, err error) {

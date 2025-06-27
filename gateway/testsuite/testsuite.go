@@ -1,6 +1,7 @@
 package testsuite
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -80,16 +81,18 @@ func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen D
 				businessAddress, err := wallet.NewAddress(ctx, wallets.NewAddressRequest{Label: label1})
 				assertions.Nil(err, "failed to create business address")
 
-				payment, err := ctrl.Receive(gateway.Receive{
-					Address:  businessAddress.Address,
-					Amount:   gen.TransferAmount(),
-					Priority: wallets.PriorityHigh,
-				})
+				payment, err := ctrl.Receive(
+					context.TODO(),
+					&gateway.Receive{
+						Address:  businessAddress.Address,
+						Amount:   gen.TransferAmount(),
+						Priority: wallets.PriorityHigh,
+					})
 				assertions.Nil(err, "failed to create payment")
 				// t.Logf("Create payment: %+v", payment)
 
 				// Query first
-				firstQuery, err := ctrl.Query(payment.Id)
+				firstQuery, err := ctrl.Query(context.TODO(), payment.Id)
 				assertions.Nil(err, "failed to query first payment")
 
 				assertions.Equal(payment.Id, firstQuery.Id, "Don't equal")
@@ -126,7 +129,7 @@ func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen D
 					assertions.Nil(err, "failed to process payments")
 
 					// Verify payment
-					paymentLatest, err = ctrl.Query(payment.Id)
+					paymentLatest, err = ctrl.Query(context.TODO(), payment.Id)
 					assertions.Nil(err, "failed to query payment")
 
 					if processed == 0 || paymentLatest.Beneficiary.Status != gateway.StatusPending {
@@ -153,7 +156,7 @@ func Test(t *testing.T, timeoutExtra time.Duration, wallet wallets.Wallet, gen D
 					assertions.Nil(err, "failed to process fee")
 
 					// Verify payment
-					paymentLatest, err = ctrl.Query(payment.Id)
+					paymentLatest, err = ctrl.Query(context.TODO(), payment.Id)
 					assertions.Nil(err, "failed to query fee")
 
 					if processed == 0 || paymentLatest.Fee.Status != gateway.StatusPending {

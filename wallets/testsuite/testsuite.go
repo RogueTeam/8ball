@@ -88,9 +88,8 @@ func Test(t *testing.T, w wallets.Wallet, gen DataGenerator) {
 		assertions.Nil(err, "failed to create new address")
 
 		// Test with a valid address
-		validRes, err := w.ValidateAddress(ctx, wallets.ValidateAddressRequest{Address: address.Address})
+		err = w.ValidateAddress(ctx, wallets.ValidateAddressRequest{Address: address.Address})
 		assertions.Nil(err, "failed to validate address")
-		assertions.True(validRes.Valid, "wallet should validate any address as true")
 	})
 
 	t.Run("Transfer", func(t *testing.T) {
