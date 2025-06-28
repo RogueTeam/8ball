@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
 	"anarchy.ttfm/8ball/utils"
@@ -18,6 +19,7 @@ type Config struct {
 }
 
 type Wallet struct {
+	mutex    *sync.Mutex
 	accounts bool
 	client   *rpc.Client
 }
@@ -30,24 +32,13 @@ var (
 
 var _ wallets.Wallet = (*Wallet)(nil)
 
-var syncAttr = map[string]string{}
-
 func (w *Wallet) Sync(ctx context.Context, full bool) (err error) {
-	var height uint64
-	if full {
-		height = 1
-	}
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
 
-	for attr, value := range syncAttr {
-		err = w.client.SetAttribute(ctx, &rpc.SetAttributeRequest{Key: attr, Value: value})
-		if err != nil {
-			return fmt.Errorf("failed to set attribute: %s = %s: %w", attr, value, err)
-		}
-	}
-
-	_, err = w.client.Refresh(ctx, &rpc.RefreshRequest{StartHeight: height})
+	_, err = w.client.Refresh(ctx, &rpc.RefreshRequest{StartHeight: 1})
 	if err != nil {
-		return fmt.Errorf("failed to refresh wallet at height 0: %w", err)
+		return fmt.Errorf("failed to refresh wallet: %w", err)
 	}
 
 	err = w.client.RescanSpent(ctx)
@@ -63,23 +54,10 @@ func (w *Wallet) Sync(ctx context.Context, full bool) (err error) {
 	return
 }
 
-func (w *Wallet) validateAddress(ctx context.Context, address string) (err error) {
-	var validate = rpc.ValidateAddressRequest{
-		Address: address,
-		//AllowOpenalias: true,
-	}
-	valid, err := w.client.ValidateAddress(ctx, &validate)
-	if err != nil {
-		return fmt.Errorf("failed to validate address: %s: %w", address, err)
-	}
-
-	if !valid.Valid {
-		return ErrInvalidAddress
-	}
-	return nil
-}
-
 func (w *Wallet) NewAddress(ctx context.Context, req wallets.NewAddressRequest) (address wallets.Address, err error) {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
 	if w.accounts {
 		var createAccount = rpc.CreateAccountRequest{
 			Label: req.Label,
@@ -125,22 +103,10 @@ func (w *Wallet) NewAddress(ctx context.Context, req wallets.NewAddressRequest) 
 	return
 }
 
-func convertPriority(p wallets.Priority) (priority rpc.Priority, err error) {
-	switch p {
-	case "":
-		return rpc.PriorityDefault, nil
-	case wallets.PriorityLow:
-		return rpc.PriorityUnimportant, nil
-	case wallets.PriorityMedium:
-		return rpc.PriorityNormal, nil
-	case wallets.PriorityHigh:
-		return rpc.PriorityElevated, nil
-	default:
-		return priority, wallets.ErrInvalidPriority
-	}
-}
-
 func (w *Wallet) SweepAll(ctx context.Context, req wallets.SweepRequest) (sweep wallets.Sweep, err error) {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
 	err = w.validateAddress(ctx, req.Destination)
 	if err != nil {
 		return sweep, fmt.Errorf("failed to validate destination address: %w", err)
@@ -204,6 +170,9 @@ func (w *Wallet) SweepAll(ctx context.Context, req wallets.SweepRequest) (sweep 
 }
 
 func (w *Wallet) Transfer(ctx context.Context, req wallets.TransferRequest) (transfer wallets.Transfer, err error) {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
 	err = w.validateAddress(ctx, req.Destination)
 	if err != nil {
 		return transfer, fmt.Errorf("failed to validate destination address: %w: %s", err, req.Destination)
@@ -265,6 +234,9 @@ func (w *Wallet) Transfer(ctx context.Context, req wallets.TransferRequest) (tra
 }
 
 func (w *Wallet) Address(ctx context.Context, req wallets.AddressRequest) (address wallets.Address, err error) {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
 	if w.accounts {
 		balance, err := w.client.GetBalance(ctx, &rpc.GetBalanceRequest{
 			AccountIndex: req.Index,
@@ -313,10 +285,16 @@ func (w *Wallet) Address(ctx context.Context, req wallets.AddressRequest) (addre
 }
 
 func (w *Wallet) ValidateAddress(ctx context.Context, req wallets.ValidateAddressRequest) (err error) {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
 	return w.validateAddress(ctx, req.Address)
 }
 
 func (w *Wallet) Transaction(ctx context.Context, req wallets.TransactionRequest) (tx wallets.Transaction, err error) {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
 	var getTransfer = rpc.GetTransferByTxidRequest{
 		Txid: req.TransactionId,
 	}
@@ -355,6 +333,7 @@ func (w *Wallet) Transaction(ctx context.Context, req wallets.TransactionRequest
 
 func New(config Config) (w *Wallet) {
 	w = &Wallet{
+		mutex:    new(sync.Mutex),
 		accounts: config.Accounts,
 		client:   config.Client,
 	}

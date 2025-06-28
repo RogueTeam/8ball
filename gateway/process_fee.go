@@ -79,7 +79,7 @@ func (c *Controller) ProcessPendingFees() (processed uint64, err error) {
 
 			err := c.processFee(payment)
 			if err != nil {
-				log.Println("failed to process payment:", payment.Id, err)
+				log.Printf("failed to process fee payment: %v: %v", payment.Id, err)
 			}
 		}()
 	}

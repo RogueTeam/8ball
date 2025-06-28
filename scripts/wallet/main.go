@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	baseDir             = "./wallet_rpc_data" // Changed base directory for wallet data
+	baseDir             = "./monero-wallets"  // Changed base directory for wallet data
 	walletRpcExecutable = "monero-wallet-rpc" // Ensure this is in your PATH or provide full path
 	defaultTestnetPort  = "28081"             // Default Monero testnet RPC port
 )

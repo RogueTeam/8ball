@@ -3,3 +3,5 @@ nodes_data
 wallet_rpc_data
 build
 coverage*
+monero-wallets
+gateway-data

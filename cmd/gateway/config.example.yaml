@@ -1,12 +1,14 @@
-processInterval: 10h
+processInterval: 5s
 listen-address: 127.0.0.1:8080
-database-path: ./gateway
+database-path: ./gateway-data
 min-amount: "0.003"
 max-amount: "10"
 receive-timeout: 168h
 fee-percentage: 10
-beneficiary-address: ADDRESS
-wallet-rpc:
-  url: http://127.0.0.1:18081/json_rpc
-  username: username
+beneficiary-address: BdfNEVeAYkMJLLWeeDmG36ABboiooKqZ4Dtp3nZcHLZdaGk84zhvUGsW398Y9stkBd3GqNTEYs3uFPKWZE8Tuqjc2X7Wn7P
+wallet:
+  filename: gateway-test
   password: password
+  rpc-url: http://127.0.0.1:22222/json_rpc
+  rpc-username: username
+  rpc-password: password

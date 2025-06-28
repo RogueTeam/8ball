@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"anarchy.ttfm/8ball/wallets/monero"
+	"gopkg.in/yaml.v3"
 )
 
 var MoneroAsBigFloat = big.NewFloat(0).SetMode(RoundingMode).SetPrec(OperationPrec).SetInt(big.NewInt(0).SetUint64(monero.MoneroUnit))
@@ -54,4 +55,23 @@ func (d *Decimal) UnmarshalJSON(b []byte) (err error) {
 
 func (d *Decimal) MarshalJSON() (b []byte, err error) {
 	return []byte("\"" + d.Value.Text('f', 12) + "\""), nil
+}
+
+var (
+	_ yaml.Unmarshaler = (*Decimal)(nil)
+	_ yaml.Marshaler   = (*Decimal)(nil)
+)
+
+func (d *Decimal) UnmarshalYAML(v *yaml.Node) (err error) {
+	var asString string
+	err = v.Decode(&asString)
+	if err != nil {
+		return err
+	}
+
+	return d.FromString(asString)
+}
+
+func (d *Decimal) MarshalYAML() (v any, err error) {
+	return d.Value.Text('f', 12), nil
 }

@@ -1,6 +1,7 @@
-package gateway
+package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -15,10 +16,12 @@ import (
 
 // Yaml configuration reference
 type (
-	WalletRPC struct {
-		Url      string  `yaml:"url"`
-		Username *string `yaml:"username,omitempty"`
-		Password *string `yaml:"password,omitempty"`
+	Wallet struct {
+		Filename    string  `yaml:"filename"`
+		Password    string  `yaml:"password"`
+		RpcUrl      string  `yaml:"rpc-url"`
+		RpcUsername *string `yaml:"rpc-username,omitempty"`
+		RpcPassword *string `yaml:"rpc-password,omitempty"`
 	}
 	Config struct {
 		ProcessInterval    time.Duration   `yaml:"processInterval"`
@@ -29,7 +32,7 @@ type (
 		Timeout            time.Duration   `yaml:"receive-timeout"`
 		FeePercentage      uint64          `yaml:"fee-percentage"`
 		BeneficiaryAddress string          `yaml:"beneficiary-address"`
-		WalletRpc          WalletRPC       `yaml:"wallet-rpc"`
+		Wallet             Wallet          `yaml:"wallet"`
 	}
 )
 
@@ -37,8 +40,20 @@ func (c *Config) Compile() (ctrl gateway.Controller, config gateway.Config, err 
 	opt := badger.DefaultOptions(c.DatabasePath)
 
 	var httpClient http.Client
-	if c.WalletRpc.Username != nil && c.WalletRpc.Password != nil {
-		httpClient.Transport = httpdigest.New(*c.WalletRpc.Username, *c.WalletRpc.Password)
+	if c.Wallet.RpcUsername != nil && c.Wallet.RpcPassword != nil {
+		httpClient.Transport = httpdigest.New(*c.Wallet.RpcUsername, *c.Wallet.RpcPassword)
+	}
+
+	moneroClient := rpc.New(rpc.Config{
+		Url:    c.Wallet.RpcUrl,
+		Client: &httpClient,
+	})
+	err = moneroClient.OpenWallet(context.TODO(), &rpc.OpenWalletRequest{
+		Filename: c.Wallet.Filename,
+		Password: c.Wallet.Password,
+	})
+	if err != nil {
+		return ctrl, config, fmt.Errorf("failed to open wallet: %w", err)
 	}
 
 	config = gateway.Config{
@@ -49,10 +64,7 @@ func (c *Config) Compile() (ctrl gateway.Controller, config gateway.Config, err 
 		Address:       c.BeneficiaryAddress,
 		Wallet: monero.New(monero.Config{
 			Accounts: true,
-			Client: rpc.New(rpc.Config{
-				Url:    c.WalletRpc.Url,
-				Client: &httpClient,
-			}),
+			Client:   moneroClient,
 		}),
 	}
 

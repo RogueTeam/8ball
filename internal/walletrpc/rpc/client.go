@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sync"
 
 	"anarchy.ttfm/8ball/internal/walletrpc/rpc/json2"
 )
@@ -13,7 +12,6 @@ import (
 // New returns a new monero-wallet-rpc client.
 func New(cfg Config) *Client {
 	cl := &Client{
-		mutex:   &sync.Mutex{},
 		addr:    cfg.Url,
 		headers: cfg.CustomHeaders,
 	}
@@ -26,16 +24,12 @@ func New(cfg Config) *Client {
 }
 
 type Client struct {
-	mutex   *sync.Mutex
 	httpcl  *http.Client
 	addr    string
 	headers map[string]string
 }
 
 func (c *Client) Do(ctx context.Context, method string, in, out interface{}) error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
 	payload, err := json2.EncodeClientRequest(method, in)
 	if err != nil {
 		return err
