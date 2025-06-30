@@ -23,6 +23,8 @@ sudo adduser --system --home /home/monero-daemon --group monero-daemon
 
 ## Service
 
+Copy the `monerod.conf` to the target.
+
 ```
 [Unit]
 Description=Monero Daemon
@@ -31,7 +33,7 @@ After=network.target
 [Service]
 Type=forking
 PIDFile=/home/monero-daemon/monerod.pid
-ExecStart=/home/monero-daemon/monero-x86_64-linux-gnu-v0.18.4.0/monerod --data-dir /home/monero-daemon/.bitmonero --p2p-bind-ip 127.0.0.1 --rpc-bind-ip 20.30.40.10 --no-igd --restricted-rpc --non-interactive --proxy 20.30.40.1:9050 --tx-proxy=tor,127.0.0.1:9050,16 --hide-my-port --confirm-external-bind --detach --pidfile /home/monero-daemon/monerod.pid --no-zmq
+ExecStart=/home/monero-daemon/monero-x86_64-linux-gnu-v0.18.4.0/monerod --non-interactive --detach --config-file /home/monero-daemon/monerod.conf --pidfile=/home/monero-daemon/monerod.pid
 User=monero-daemon
 Group=monero-daemon
 WorkingDirectory=/home/monero-daemon
