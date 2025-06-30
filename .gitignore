@@ -5,3 +5,5 @@ build
 coverage*
 monero-wallets
 gateway-data
+identity
+identity2
