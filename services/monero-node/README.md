@@ -9,7 +9,8 @@ sudo ufw reset
 sudo ufw default deny incoming
 sudo ufw default deny outgoing
 sudo ufw allow out to 20.30.40.5 port 8080 proto tcp
-sudo ufw allow out to 20.30.40.1 port 9050 proto tcp
+sudo ufw allow out to 20.30.40.5 port 9999
+sudo ufw allow out to 20.30.40.1 port 9999
 sudo ufw allow from 20.30.40.1 to any port 22 proto tcp
 sudo ufw enable
 sudo ufw status verbose

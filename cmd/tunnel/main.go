@@ -69,6 +69,7 @@ var app = cli.Command{
 		defer host.Close()
 
 		log.Println("[+] Listening")
+		log.Println("\tId:", host.ID())
 		forward := c.StringMap("forward")
 		bind := c.StringMap("bind")
 		maddr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.ID()))
