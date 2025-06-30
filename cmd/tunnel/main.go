@@ -172,9 +172,9 @@ var app = cli.Command{
 
 					go func() {
 						defer conn.Close()
-						log.Println("[*] Received connection:", conn.RemoteAddr())
+						log.Println("[*] Received connection:", conn.RemoteAddr(), "for service:", target)
 
-						log.Println("[*] Connecting to peer")
+						log.Println("[*] Connecting to peer:", rawPeerAddr, "for service:", target)
 						s, err := host.NewStream(context.Background(), info.ID, protocol.ID(service))
 						if err != nil {
 							log.Println(err)
@@ -182,7 +182,8 @@ var app = cli.Command{
 						}
 						defer s.Close()
 
-						log.Println("[*] Serving request")
+						defer log.Println("[*] Served request:", rawPeerAddr, "for service:", target)
+						log.Println("[*] Serving request:", rawPeerAddr, "for service:", target)
 						go io.Copy(s, conn)
 						io.Copy(conn, s)
 					}()
