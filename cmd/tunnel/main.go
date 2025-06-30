@@ -116,6 +116,7 @@ var app = cli.Command{
 					log.Println("[!] Failed to dial to:", target)
 					return
 				}
+				defer conn.Close()
 
 				log.Println("[*] Forwarding data:", target)
 				go io.Copy(conn, s)
