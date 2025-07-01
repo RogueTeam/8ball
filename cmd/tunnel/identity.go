@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -10,6 +11,7 @@ import (
 
 func LoadIdentity(location string) (privKey crypto.PrivKey, err error) {
 	if _, err := os.Stat(location); err == nil {
+		log.Println("[*] Loading existing Key Pair")
 		contents, err := os.ReadFile(location)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read private key: %w", err)
@@ -21,6 +23,7 @@ func LoadIdentity(location string) (privKey crypto.PrivKey, err error) {
 		}
 		return privKey, nil
 	} else if os.IsNotExist(err) {
+		log.Println("[*] Generating Key Pair")
 		privKey, _, err = crypto.GenerateKeyPairWithReader(crypto.Ed25519, -1, rand.Reader)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate private key: %w", err)
@@ -38,6 +41,7 @@ func LoadIdentity(location string) (privKey crypto.PrivKey, err error) {
 
 		return privKey, nil
 	} else {
+		log.Println("[!] Failed to load Key Pair")
 		return nil, fmt.Errorf("failed to load key: %w", err)
 	}
 }

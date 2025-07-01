@@ -41,10 +41,10 @@ var app = cli.Command{
 			Usage: "Identity path",
 			Value: "identity",
 		},
-		&cli.StringFlag{
+		&cli.StringSliceFlag{
 			Name:  "listen",
 			Usage: "Listen address",
-			Value: "/ip4/0.0.0.0/tcp/9999",
+			Value: []string{"/ip4/0.0.0.0/udp/9999/quic-v1"},
 		},
 		&cli.StringMapFlag{
 			Name:  "forward",
@@ -59,8 +59,9 @@ var app = cli.Command{
 	Action: func(ctx context.Context, c *cli.Command) (err error) {
 		privKey, err := LoadIdentity(c.String("identity-path"))
 
+		log.Println("[*] Preparing P2P Host")
 		host, err := libp2p.New(
-			libp2p.ListenAddrStrings(c.String("listen")),
+			libp2p.ListenAddrStrings(c.StringSlice("listen")...),
 			libp2p.Identity(privKey),
 		)
 		if err != nil {
@@ -98,9 +99,10 @@ var app = cli.Command{
 		for target, service := range forward {
 			log.Println("\t[*] Preparing:", target, "over protocol:", service)
 			host.SetStreamHandler(protocol.ID(service), func(s network.Stream) {
+				defer s.Close()
+
 				remotePeer := s.Conn().RemotePeer()
 				log.Println("[*] Received connection from peer:", remotePeer)
-				defer s.Close()
 
 				if len(allowedPeers) > 0 {
 					_, found := allowedPeers[remotePeer.String()]
