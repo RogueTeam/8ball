@@ -1,0 +1,9 @@
+---
+import Markdown from "../../components/markdown.astro";
+import Layout from "../../layouts/Layout.astro";
+import * as Post from "./articles/monero-anonymity.md";
+---
+
+<Layout title={Post.frontmatter.title}>
+    <Markdown><Post.Content /></Markdown>
+</Layout>

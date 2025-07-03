@@ -1,0 +1,37 @@
+---
+import Card from "../components/card.astro";
+
+import Button from "../components/button.astro";
+import Layout from "../layouts/Layout.astro";
+
+const posts = Object.values(
+    import.meta.glob("./blog/articles/*.md", { eager: true }),
+);
+---
+
+<Layout title="Blog">
+    <div
+        class="grow h-full gap-5 grid md:grid-cols-2 w-full max-w-[1000px] items-center"
+    >
+        {
+            posts.map((post) => (
+                <Card>
+                    <div class="p-5 w-full flex flex-col gap-5 h-[400px]">
+                        <h3 class="antialiased font-sans font-extrabold text-4xl">
+                            {post.frontmatter.title}
+                        </h3>
+                        <p
+                            class="grow"
+                            set:html={post.frontmatter.description}
+                        />
+                        <div class="flex items-end justify-end align-middle">
+                            <Button href={`/blog/${post.frontmatter.filename}`}>
+                                Read
+                            </Button>
+                        </div>
+                    </div>
+                </Card>
+            ))
+        }
+    </div>
+</Layout>

@@ -1,0 +1,185 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Card from "../components/card.astro";
+import Link from "../components/link.astro";
+import { CircleCheck, CircleSmall } from "@lucide/astro";
+
+const receiveCurlCommand = `curl -X POST -H 'Content-Type: application/json' \\
+-d '{"address": "YOUR_MONERO_ADDRESS", "amount": "0.5"}' \\
+https://api.xmrgateway.com/payments`;
+const statusCurlCommand = `curl -X GET https://api.xmrgateway.com/payments/TRANSACTION_ID`;
+const paymentExample = JSON.stringify(
+    {
+        id: "TRANSACTION_ID",
+        amount: "0.5",
+        expiration: "2025-07-02T15:04:05Z",
+        paymentAddress: "PAYMENT_ADDRESS",
+        fee: {
+            status: "MONERO_TX_STATUS",
+            percentage: 1,
+            error: "ERROR_MESSAGE",
+            payed: "~0.005",
+        },
+        beneficiary: {
+            status: "MONERO_TX_STATUS",
+            error: "ERROR_MESSAGE",
+            payed: "0.495",
+        },
+    },
+    null,
+    4,
+);
+---
+
+<Layout title="Documentation">
+    <div
+        class="grow h-full gap-5 flex flex-col w-full max-w-[1000px] items-center"
+    >
+        <div class="p-5 h-full w-full flex flex-col gap-2">
+            <h3 class="text-blue-500 font-sans font-extrabold text-4xl">
+                Endpoints
+            </h3>
+            <h3 class="text-md font-bold">Production (Monero's mainnet)</h3>
+            <ul class="p-5 pt-0 pb-0">
+                <li class="list-disc">https://api.xmrgateway.com</li>
+                <li class="list-disc">
+                    http://624ydlvn7xixditf6of6smblxhrdnz4e6dm6xe7zxt6hehopek76moqd.onion
+                </li>
+            </ul>
+            <h3 class="text-md font-bold">Testing (Monero's testnet)</h3>
+            <ul class="p-5 pt-0 pb-0">
+                <li class="list-disc">
+                    (Comming soon) https://api-testing.xmrgateway.com
+                </li>
+            </ul>
+        </div>
+        <div class="p-5 h-full w-full flex flex-col gap-2">
+            <h3 class="text-blue-500 font-sans font-extrabold text-4xl">
+                Receive
+            </h3>
+            <p>Create a receiving address</p>
+            <h3 class="text-md font-bold">Request</h3>
+            <pre
+                class="overflow-auto flex-auto bg-gray-700 text-gray-100 p-2 rounded-xl"><code><p>{receiveCurlCommand}</p></code></pre>
+            <h3 class="text-md font-bold">Response</h3>
+            <pre
+                class="grow overflow-auto bg-gray-700 text-gray-100 p-2 rounded-xl"><samp><p>{paymentExample}</p></samp></pre>
+            <h3 class="text-md font-bold">Legend</h3>
+            <ul class="gap-1 flex flex-col p-5 pt-0 pb-0">
+                <li class="list-disc">
+                    <span class="font-bold italic">YOUR_MONERO_ADDRESS:</span>
+                    This is your Monero wallet address, which you will use to receive
+                    funds.
+                </li>
+                <li class="list-disc">
+                    <span class="font-bold italic">TRANSACTION_ID:</span>
+                    This is the unique identifier for the transaction; you can use
+                    it to verify if the payment has been completed.
+                </li>
+                <li class="list-disc">
+                    <span class="font-bold italic">PAYMENT_ADDRESS:</span>
+                    This is the address you will provide to your client to receive
+                    the payment.
+                </li>
+                <li class="list-disc">
+                    <span class="font-bold italic">ERROR_MESSAGE:</span>
+                    If an error occurs, this message will explain the reason.
+                </li>
+                <li class="list-disc">
+                    <div>
+                        <span class="font-bold italic">MONERO_TX_STATUS:</span>
+                        This indicates the status of the transaction. The possible
+                        values are:
+                        <ul class="ml-5">
+                            <li class="list-disc">
+                                <span class="font-bold italic"> pending: </span>
+                                No funds have been received yet.
+                            </li>
+                            <li class="list-disc">
+                                <span class="font-bold italic">
+                                    completed:
+                                </span> The transaction was successfully completed.
+                            </li>
+                            <li class="list-disc">
+                                <span class="font-bold italic">
+                                    partially-completed:
+                                </span> The transaction was completed, but the expected
+                                amount was not received from the sender.
+                            </li>
+                            <li class="list-disc">
+                                <span class="font-bold italic"> expired: </span>
+                                The transaction has expired; no funds were received.
+                            </li>
+                            <li class="list-disc">
+                                <span class="font-bold italic">error:</span>
+                                The transaction failed; see <span
+                                    class="font-bold italic">ERROR_MESSAGE</span
+                                > for more details.
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+        </div>
+        <div class="p-5 h-full w-full flex flex-col gap-2">
+            <h3 class="text-blue-500 font-sans font-extrabold text-4xl">
+                Payment Status
+            </h3>
+            <p>Check whether the payment has been received.</p>
+            <h3 class="text-md font-bold">Request</h3>
+            <pre
+                class="overflow-auto flex-auto bg-gray-700 text-gray-100 p-2 rounded-xl"><code><p>{statusCurlCommand}</p></code></pre>
+            <h3 class="text-md font-bold">Response</h3>
+            <pre
+                class="grow overflow-auto bg-gray-700 text-gray-100 p-2 rounded-xl"><samp><p>{paymentExample}</p></samp></pre>
+            <h3 class="text-md font-bold">Legend</h3>
+            <ul class="gap-1 flex flex-col p-5 pt-0 pb-0">
+                <li class="list-disc">
+                    <span class="font-bold italic">TRANSACTION_ID:</span>
+                    This is the unique identifier for the transaction; you can use
+                    it to verify if the payment has been completed.
+                </li>
+                <li class="list-disc">
+                    <span class="font-bold italic">PAYMENT_ADDRESS:</span>
+                    This is the address you will provide to your client to receive
+                    the payment.
+                </li>
+                <li class="list-disc">
+                    <span class="font-bold italic">ERROR_MESSAGE:</span>
+                    If an error occurs, this message will explain the reason.
+                </li>
+                <li class="list-disc">
+                    <span class="font-bold italic">MONERO_TX_STATUS:</span>
+                    This indicates the status of the transaction. The possible values
+                    are:
+                    <ul class="ml-5">
+                        <li class="list-disc">
+                            <span class="font-bold italic">pending:</span> No funds
+                            have been received yet.
+                        </li>
+                        <li class="list-disc">
+                            <span class="font-bold italic">completed:</span>
+                            The transaction was successfully completed.
+                        </li>
+                        <li class="list-disc">
+                            <span class="font-bold italic"
+                                >partially-completed:</span
+                            > The transaction was completed, but the expected amount
+                            was not received from the sender.
+                        </li>
+                        <li class="list-disc">
+                            <span class="font-bold italic">expired:</span> The transaction
+                            has expired; no funds were received.
+                        </li>
+                        <li class="list-disc">
+                            <span class="font-bold italic">error:</span> The transaction
+                            failed; see <span class="font-bold italic"
+                                >ERROR_MESSAGE</span
+                            > for more details.
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</Layout>

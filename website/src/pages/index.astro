@@ -1,8 +1,53 @@
 ---
-import Welcome from "../components/Welcome.astro";
+import { BadgeCheck, ChevronRight } from "@lucide/astro";
 import Layout from "../layouts/Layout.astro";
+import Link from "../components/link.astro";
+import Button from "../components/button.astro";
 ---
 
 <Layout>
-    <Welcome />
+    <div class="max-w-[1000px] flex flex-col md:flex-row items-center">
+        <div class="text-left md:mr-8">
+            <h1 class="text-5xl md:text-7xl font-bold text-gray-800 mb-6">
+                Seamless XMR Payments
+            </h1>
+            <p class="text-lg text-gray-600 mb-4">
+                Experience a simple and secure way to receive Monero payments
+                with our user-friendly API.
+            </p>
+            <ul class="list-none list-inside text-lg text-gray-700">
+                <li class="mb-3 flex items-center gap-3">
+                    <BadgeCheck class="text-green-700" />
+                    <span>Privacy first with no KYC required</span>
+                </li>
+                <li class="mb-3 flex items-center gap-3">
+                    <BadgeCheck class="text-green-700" />
+                    <span>Hassle-free experience with no account needed</span>
+                </li>
+                <li class="mb-3 flex items-center gap-3">
+                    <BadgeCheck class="text-green-700" />
+                    <span>Built for developers with an easy-to-use API</span>
+                </li>
+            </ul>
+            <div class="flex gap-2 flex-wrap">
+                <Button
+                    href="/docs"
+                    class="font-sans bg-gray-800 text-gray-100 p-2 px-5 hover:bg-gray-900 rounded-md"
+                >
+                    <span class="font-bold">
+                        Start Accepting Monero Today
+                    </span>
+                </Button>
+                <Link href="/commissions">
+                    <span class="font-bold">View Commissions</span>
+                    <ChevronRight />
+                </Link>
+            </div>
+        </div>
+        <img
+            class="h-auto max-w-[300px] mt-6 md:mt-0 rounded-full shadow-lg"
+            src="/favicon.svg"
+            alt="Monero Logo"
+        />
+    </div>
 </Layout>

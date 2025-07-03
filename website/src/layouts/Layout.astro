@@ -1,17 +1,26 @@
+---
+import Navbar from "../components/navbar.astro";
+import "../styles/global.css";
+
+const { title } = Astro.props;
+---
+
 <!doctype html>
 <html lang="en" class="w-full h-full m-0">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width" />
-        <link rel="icon" href="/monero.png" />
-        <meta name="generator" content={Astro.generator} />
-        <title>XMR Gateway</title>
+        <link rel="icon" href="/favicon.svg" />
+        <title>XMR Gateway {title ? `| ${title}` : ""}</title>
     </head>
     <body class="w-full h-full m-0">
-        <slot />
+        <div class="flex flex-col h-full w-full">
+            <div class="mt-1"><Navbar /></div>
+            <div
+                class="grow w-full flex flex-col items-center justify-center p-4 md:p-8"
+            >
+                <slot />
+            </div>
+        </div>
     </body>
 </html>
-
-<style>
-    @import "tailwindcss";
-</style>
