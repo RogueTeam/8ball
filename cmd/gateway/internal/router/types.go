@@ -9,17 +9,18 @@ import (
 	"github.com/google/uuid"
 )
 
+const DefaultPriority = wallets.PriorityLow
+
 type Receive struct {
-	Address  string           `json:"address,omitzero"`
-	Amount   decimal.Decimal  `json:"amount,omitzero"`
-	Priority wallets.Priority `json:"priority,omitzero"`
+	Address string          `json:"address,omitzero"`
+	Amount  decimal.Decimal `json:"amount,omitzero"`
 }
 
 func ReceiveToGateway(src *Receive) (out gateway.Receive, err error) {
 	out = gateway.Receive{
 		Address:  src.Address,
 		Amount:   src.Amount.ToUint64(),
-		Priority: src.Priority,
+		Priority: DefaultPriority,
 	}
 	return out, nil
 }
@@ -46,8 +47,6 @@ type (
 	Payment struct {
 		// Identifier of the transaction
 		Id uuid.UUID `json:"id"`
-		// Priority to forward funds to beneficiary
-		Priority wallets.Priority `json:"priority"`
 		// Overall amount to expect from the transaction
 		Amount decimal.Decimal `json:"amount"`
 		// Expiration time of the payment
@@ -66,7 +65,6 @@ type (
 func PaymentFromGateway(src *gateway.Payment) (payment Payment) {
 	payment = Payment{
 		Id:             src.Id,
-		Priority:       src.Priority,
 		Expiration:     src.Expiration,
 		PaymentAddress: src.Receiver.Address,
 		Fee: Fee{
