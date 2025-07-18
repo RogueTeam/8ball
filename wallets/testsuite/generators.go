@@ -1,6 +1,6 @@
 package testsuite
 
-import "anarchy.ttfm/8ball/wallets/monero"
+import "github.com/RogueTeam/8ball/wallets/monero"
 
 type MockGenerator struct {
 }

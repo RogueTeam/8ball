@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"anarchy.ttfm/8ball/utils"
-	"anarchy.ttfm/8ball/wallets"
+	"github.com/RogueTeam/8ball/utils"
+	"github.com/RogueTeam/8ball/wallets"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/google/uuid"
 )

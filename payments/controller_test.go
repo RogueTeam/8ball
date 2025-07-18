@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
-	"anarchy.ttfm/8ball/payments/testsuite"
-	"anarchy.ttfm/8ball/utils"
-	"anarchy.ttfm/8ball/wallets/mock"
-	"anarchy.ttfm/8ball/wallets/monero"
-	testsuite2 "anarchy.ttfm/8ball/wallets/testsuite"
+	"github.com/RogueTeam/8ball/internal/walletrpc/rpc"
+	"github.com/RogueTeam/8ball/payments/testsuite"
+	"github.com/RogueTeam/8ball/utils"
+	"github.com/RogueTeam/8ball/wallets/mock"
+	"github.com/RogueTeam/8ball/wallets/monero"
+	testsuite2 "github.com/RogueTeam/8ball/wallets/testsuite"
 	"github.com/gabstv/httpdigest"
 	"github.com/stretchr/testify/assert"
 )

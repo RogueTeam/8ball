@@ -5,8 +5,8 @@ import (
 	"log"
 	"sync"
 
-	"anarchy.ttfm/8ball/utils"
-	"anarchy.ttfm/8ball/wallets"
+	"github.com/RogueTeam/8ball/utils"
+	"github.com/RogueTeam/8ball/wallets"
 )
 
 func (c *Controller) processFee(p Payment) (err error) {

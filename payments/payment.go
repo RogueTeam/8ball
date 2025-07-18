@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"anarchy.ttfm/8ball/wallets"
+	"github.com/RogueTeam/8ball/wallets"
 	"github.com/google/uuid"
 )
 

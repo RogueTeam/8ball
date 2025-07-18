@@ -3,8 +3,8 @@ package mock_test
 import (
 	"testing"
 
-	"anarchy.ttfm/8ball/wallets/mock"
-	"anarchy.ttfm/8ball/wallets/testsuite"
+	"github.com/RogueTeam/8ball/wallets/mock"
+	"github.com/RogueTeam/8ball/wallets/testsuite"
 )
 
 func Test_Mock(t *testing.T) {

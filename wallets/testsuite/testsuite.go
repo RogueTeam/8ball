@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"anarchy.ttfm/8ball/random"
-	"anarchy.ttfm/8ball/utils"
-	wallets "anarchy.ttfm/8ball/wallets"
+	"github.com/RogueTeam/8ball/random"
+	"github.com/RogueTeam/8ball/utils"
+	wallets "github.com/RogueTeam/8ball/wallets"
 	"github.com/stretchr/testify/assert"
 )
 

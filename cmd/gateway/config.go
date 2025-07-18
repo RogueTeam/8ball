@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"anarchy.ttfm/8ball/decimal"
-	"anarchy.ttfm/8ball/gateway"
-	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
-	"anarchy.ttfm/8ball/wallets/monero"
+	"github.com/RogueTeam/8ball/decimal"
+	"github.com/RogueTeam/8ball/gateway"
+	"github.com/RogueTeam/8ball/internal/walletrpc/rpc"
+	"github.com/RogueTeam/8ball/wallets/monero"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/gabstv/httpdigest"
 )

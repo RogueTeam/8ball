@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"math/big"
 
-	"anarchy.ttfm/8ball/wallets/monero"
+	"github.com/RogueTeam/8ball/wallets/monero"
 	"gopkg.in/yaml.v3"
 )
 

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sync"
 
-	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
-	"anarchy.ttfm/8ball/utils"
-	wallets "anarchy.ttfm/8ball/wallets"
+	"github.com/RogueTeam/8ball/internal/walletrpc/rpc"
+	"github.com/RogueTeam/8ball/utils"
+	wallets "github.com/RogueTeam/8ball/wallets"
 )
 
 const MoneroUnit = 1_000_000_000_000

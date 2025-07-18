@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"anarchy.ttfm/8ball/gateway"
+	"github.com/RogueTeam/8ball/gateway"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )

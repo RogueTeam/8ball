@@ -3,7 +3,7 @@ package rpc
 import (
 	"fmt"
 
-	"anarchy.ttfm/8ball/internal/walletrpc/rpc/json2"
+	"github.com/RogueTeam/8ball/internal/walletrpc/rpc/json2"
 )
 
 // H is a helper map shortcut.

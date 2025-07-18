@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
-	wallets "anarchy.ttfm/8ball/wallets"
+	"github.com/RogueTeam/8ball/internal/walletrpc/rpc"
+	wallets "github.com/RogueTeam/8ball/wallets"
 )
 
 func convertPriority(p wallets.Priority) (priority rpc.Priority, err error) {

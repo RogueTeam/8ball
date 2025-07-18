@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"anarchy.ttfm/8ball/wallets"
+	"github.com/RogueTeam/8ball/wallets"
 	badger "github.com/dgraph-io/badger/v4"
 )
 

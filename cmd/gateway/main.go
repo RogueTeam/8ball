@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"anarchy.ttfm/8ball/cmd/gateway/internal/router"
+	"github.com/RogueTeam/8ball/cmd/gateway/internal/router"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 )

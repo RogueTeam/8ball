@@ -8,8 +8,8 @@ import (
 	"log"
 	"net/http"
 
-	"anarchy.ttfm/8ball/internal/walletrpc/old_rpc"
-	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
+	"github.com/RogueTeam/8ball/internal/walletrpc/old_rpc"
+	"github.com/RogueTeam/8ball/internal/walletrpc/rpc"
 )
 
 /////////////////////////

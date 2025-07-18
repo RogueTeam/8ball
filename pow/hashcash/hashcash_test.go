@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"testing"
 
-	"anarchy.ttfm/8ball/pow/hashcash"
-	"anarchy.ttfm/8ball/utils"
+	"github.com/RogueTeam/8ball/pow/hashcash"
+	"github.com/RogueTeam/8ball/utils"
 	"github.com/stretchr/testify/assert"
 )
 

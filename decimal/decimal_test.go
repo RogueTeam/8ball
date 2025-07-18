@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"anarchy.ttfm/8ball/decimal"
-	"anarchy.ttfm/8ball/wallets/monero"
+	"github.com/RogueTeam/8ball/decimal"
+	"github.com/RogueTeam/8ball/wallets/monero"
 	"github.com/stretchr/testify/assert"
 )
 

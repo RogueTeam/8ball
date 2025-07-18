@@ -1,4 +1,4 @@
-module anarchy.ttfm/8ball
+module github.com/RogueTeam/8ball
 
 go 1.24.2
 

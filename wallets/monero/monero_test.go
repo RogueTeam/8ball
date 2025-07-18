@@ -7,10 +7,10 @@ import (
 	"os"
 	"testing"
 
-	"anarchy.ttfm/8ball/internal/walletrpc/rpc"
-	"anarchy.ttfm/8ball/utils"
-	"anarchy.ttfm/8ball/wallets/monero"
-	"anarchy.ttfm/8ball/wallets/testsuite"
+	"github.com/RogueTeam/8ball/internal/walletrpc/rpc"
+	"github.com/RogueTeam/8ball/utils"
+	"github.com/RogueTeam/8ball/wallets/monero"
+	"github.com/RogueTeam/8ball/wallets/testsuite"
 	"github.com/gabstv/httpdigest"
 	"github.com/stretchr/testify/assert"
 )

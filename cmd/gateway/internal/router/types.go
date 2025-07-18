@@ -3,9 +3,9 @@ package router
 import (
 	"time"
 
-	"anarchy.ttfm/8ball/decimal"
-	"anarchy.ttfm/8ball/gateway"
-	"anarchy.ttfm/8ball/wallets"
+	"github.com/RogueTeam/8ball/decimal"
+	"github.com/RogueTeam/8ball/gateway"
+	"github.com/RogueTeam/8ball/wallets"
 	"github.com/google/uuid"
 )
 

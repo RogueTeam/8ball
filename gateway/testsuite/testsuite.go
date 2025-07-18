@@ -8,10 +8,10 @@ import (
 
 	_ "embed"
 
-	"anarchy.ttfm/8ball/gateway"
-	"anarchy.ttfm/8ball/random"
-	"anarchy.ttfm/8ball/utils"
-	"anarchy.ttfm/8ball/wallets"
+	"github.com/RogueTeam/8ball/gateway"
+	"github.com/RogueTeam/8ball/random"
+	"github.com/RogueTeam/8ball/utils"
+	"github.com/RogueTeam/8ball/wallets"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"

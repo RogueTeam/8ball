@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	wallets "anarchy.ttfm/8ball/wallets"
+	wallets "github.com/RogueTeam/8ball/wallets"
 )
 
 var (
