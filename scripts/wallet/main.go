@@ -42,7 +42,6 @@ func main() {
 		"--daemon-address", *daemonAddress,
 		"--wallet-dir", baseDir,
 		"--log-level", "0",
-		"--confirm-external-bind", // Required for external connections
 	)
 	walletRpcCmd.Stdout = os.Stdout
 	walletRpcCmd.Stderr = os.Stderr
