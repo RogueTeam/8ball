@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -92,10 +93,16 @@ func prepareArgs() (args []string) {
 	} else {
 		// If --data-dir is not provided, monerod will use its default.
 		// We'll try to determine what that default would be for informational purposes.
-		if os.Getenv("HOME") != "" { // Linux/macOS
-			actualDataDir = filepath.Join(os.Getenv("HOME"), ".monero", "lmdb") // monerod's default is usually lmdb inside .monero
-		} else if os.Getenv("APPDATA") != "" { // Windows
-			actualDataDir = filepath.Join(os.Getenv("APPDATA"), "Monero", "lmdb")
+		if runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "freebsd" {
+			actualDataDir = filepath.Join(os.Getenv("HOME"), ".bitmonero")
+			if config.network != "mainnet" {
+				actualDataDir = filepath.Join(actualDataDir, config.network)
+			}
+		} else if runtime.GOOS == "windows" {
+			actualDataDir = "C:/ProgramData/bitmonero"
+			if config.network != "mainnet" {
+				actualDataDir = filepath.Join(actualDataDir, config.network)
+			}
 		} else {
 			actualDataDir = "monerod's default (likely current directory or system-specific)" // Best guess
 		}
