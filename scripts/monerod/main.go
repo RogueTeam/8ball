@@ -98,7 +98,7 @@ func prepareArgs() (args []string) {
 			if config.network != "mainnet" {
 				actualDataDir = filepath.Join(actualDataDir, config.network)
 			}
-		} else if runtime.GOOS == "windows" { // Windows
+		} else if runtime.GOOS == "windows" {
 			actualDataDir = "C:/ProgramData/bitmonero"
 			if config.network != "mainnet" {
 				actualDataDir = filepath.Join(actualDataDir, config.network)
